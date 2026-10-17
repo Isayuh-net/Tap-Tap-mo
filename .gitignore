@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Secrets and local settings
+.env
+gate-app/config.json
+
+# Database, backups and logs (contain student data)
+server/data/
+server/backups/
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Build output
+gate-app/dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

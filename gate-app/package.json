@@ -1,0 +1,13 @@
+{
+  "name": "tap-tap-mo-gate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tap-Tap Mo gate station app (Electron)",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^44.9.0"
+  }
+}

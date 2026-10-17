@@ -1,0 +1,7 @@
+{
+  "serverUrl": "http://localhost:3000",
+  "gateId": "gate1",
+  "gateKey": "change-me-1",
+  "gateName": "Gate 1 | Main entrance",
+  "kiosk": false
+}

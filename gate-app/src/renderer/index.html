@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'">
+  <title>Tap-Tap Mo Gate</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- One screen, restyled for each state in Figure 3: waiting, ok, offline, error -->
+  <div id="screen" class="waiting">
+    <div id="banner"></div>
+    <div id="content">
+      <div id="clock"></div>
+      <div id="label"></div>
+      <div id="name">Tap your card</div>
+      <div id="detail"></div>
+      <div id="note"></div>
+    </div>
+  </div>
+
+  <!-- The USB reader "types" the card number here, then presses Enter -->
+  <input id="scan" autocomplete="off" autofocus>
+
+  <script src="gate.js"></script>
+</body>
+</html>

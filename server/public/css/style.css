@@ -1,0 +1,23 @@
+/* Staff dashboard styles (layout from Figure 5 of the design doc). */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #222;
+  background: #f5f5f3;
+  display: flex;
+  min-height: 100vh;
+}
+
+nav {
+  width: 200px;
+  background: #2b2b2b;
+  color: #fff;
+  padding: 16px 0;
+}
+nav h1 { font-size: 1.1rem; margin: 0 16px 16px; }
+nav a { display: block; padding: 10px 16px; color: #ccc; text-decoration: none; }
+nav a.active, nav a:hover { background: #444; color: #fff; }
+
+main { flex: 1; padding: 24px; }
