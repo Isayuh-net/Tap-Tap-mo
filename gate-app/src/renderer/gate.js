@@ -42,7 +42,7 @@ function now() {
   return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-function render(reply) {
+function render(reply, uid) {
   // Server not reachable: the tap is saved on this PC and uploaded later (screen 3).
   if (!reply.online) {
     const student = reply.student;
@@ -71,7 +71,13 @@ function render(reply) {
       show({ state: 'ok', label: 'ALREADY TAPPED', name: reply.name, note: 'Your tap was already recorded' });
       return beep(880);
     default: // unregistered or inactive card (screen 4)
-      show({ state: 'error', label: 'NOT RECOGNIZED', name: 'Card not registered', note: 'Please see the guard on duty' });
+      show({
+        state: 'error',
+        label: 'NOT RECOGNIZED',
+        name: reply.result === 'inactive' ? 'Card deactivated' : 'Card not registered',
+        detail: `Card ${uid}`, // lets the guard or staff look the card up
+        note: 'Please see the guard on duty',
+      });
       return beep(300);
   }
 }
@@ -81,7 +87,7 @@ scan.addEventListener('keydown', async (event) => {
   const uid = scan.value.trim();
   scan.value = '';
   if (!uid) return;
-  render(await window.gate.tap(uid));
+  render(await window.gate.tap(uid), uid);
 });
 
 window.gate.info().then((info) => {

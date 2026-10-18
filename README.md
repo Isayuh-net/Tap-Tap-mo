@@ -108,14 +108,38 @@ cp config.example.json config.json
 npm start
 ```
 
-The first `npm start` downloads Electron. You don't need a reader to test: click the window, type any
-card number, and press Enter. A USB reader does the same thing.
+The first `npm start` downloads Electron. You don't need a reader to test: type any card number and
+press Enter. A USB reader does the same thing.
+
+**Register a test card** (until the registration page is built)
+
+Find the card's number by tapping it while Notepad is open: the reader types it. Then, in `server/`:
+
+```bash
+npm run add-student -- --uid 0004567890 --name "Stephanie Lei Polonio" --grade 12 --section "STEM A" --mobile 09170005590
+```
+
+The parent's number is marked as verified, so texts are sent right away. Restart the gate app (or wait
+5 minutes) so it downloads the new name for offline mode.
+
+**Things to try**
+
+| Try this | What should happen |
+|---|---|
+| Tap a registered card | Green "TIME IN" screen; the text appears in the server terminal |
+| Tap it again within 30 seconds | "ALREADY TAPPED", no text |
+| Tap it again after 30 seconds | "TIME OUT", and a "left school" text |
+| Tap an unregistered card | Red "Card not registered" screen showing the card number |
+| Stop the server, then tap | Orange "OFFLINE: TAP SAVED" with the student's name |
+| Start the server again | Within 5 seconds the saved taps upload and their texts go out |
+| Register a number ending in `0000` | The text is marked failed (invalid number) |
+| Set `MOCK_SMS_FAIL_RATE=1`, restart the server, tap | The text stays queued and retries; set it back to `0` and it sends |
 
 ## Status
 
-Structure and core files are in place. Not built yet: tap processing (`services/attendance.js`),
-the SMS queue worker, gate sync, login, and the dashboard pages. Routes that are not built yet answer
-`501 Not implemented`.
+Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and
+delivery status, mock SMS provider). Not built yet: Cast PH provider, login, registration with
+verification codes, and the dashboard pages. Routes that are not built yet answer `501 Not implemented`.
 
 ## To confirm with Cast PH
 

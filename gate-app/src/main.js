@@ -28,9 +28,10 @@ function createWindow() {
 ipcMain.handle('gate:info', () => ({ gateName: config.gateName }));
 
 // A card was tapped: save it first, then try to send it to the server right away.
-ipcMain.handle('gate:tap', async (_event, uid) => {
+ipcMain.handle('gate:tap', async (_event, rawUid) => {
+  const uid = String(rawUid).replace(/\s+/g, '').toUpperCase(); // same cleanup as the server
   const tap = outbox.add(uid);
-  const results = await sync.uploadNow();
+  const results = await sync.uploadNow().catch(() => null);
   const result = results?.find((r) => r.clientTapId === tap.clientTapId);
   if (result) return { online: true, ...result };
   // Server not reachable: the tap stays in the outbox and is sent later.

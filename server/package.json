@@ -6,7 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node --env-file-if-exists=.env src/index.js",
-    "dev": "node --watch --env-file-if-exists=.env src/index.js"
+    "dev": "node --watch --env-file-if-exists=.env src/index.js",
+    "add-student": "node --env-file-if-exists=.env scripts/add-student.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
