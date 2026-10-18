@@ -21,6 +21,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 #screen.waiting #clock { display: block; }
 #label  { font-size: 2rem; font-weight: bold; letter-spacing: 0.05em; }
 #name   { font-size: 4.5rem; font-weight: bold; }
+#strand { font-size: 3rem; font-weight: bold; opacity: 0.95; }
 #detail { font-size: 2rem; opacity: 0.9; }
 #note   { font-size: 1.5rem; opacity: 0.8; }
 

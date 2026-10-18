@@ -1,0 +1,10 @@
+{
+  "name": "tap-tap-mo",
+  "private": true,
+  "description": "Shortcuts so the main commands work from the project folder",
+  "scripts": {
+    "server": "npm --prefix server run dev",
+    "gate": "npm --prefix gate-app start",
+    "add-student": "npm --prefix server run add-student --"
+  }
+}

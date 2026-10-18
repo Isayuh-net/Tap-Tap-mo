@@ -4,11 +4,32 @@ const db = require('../db');
 const gateAuth = require('../middleware/gateAuth');
 const { recordTap } = require('../services/attendance');
 const smsQueue = require('../services/smsQueue');
+const { classLabel } = require('../utils/classLabel');
+const { displayTime } = require('../utils/time');
 
 const router = express.Router();
 router.use(gateAuth);
 
 const MAX_TAPS_PER_UPLOAD = 500;
+
+const RESULT_LABELS = {
+  time_in: 'TIME IN',
+  time_out: 'TIME OUT',
+  cooldown: 'ALREADY TAPPED',
+  unregistered: 'NOT REGISTERED',
+  inactive: 'DEACTIVATED',
+};
+
+// One line per tap in the server window, e.g.
+// "[gate1]  7:12 AM  TIME IN         Test Student, Grade 12 - STEM A - text queued"
+function logTap(gateId, tap, reply) {
+  const date = new Date(tap.tappedAt);
+  const time = Number.isNaN(date.getTime()) ? '' : displayTime(date);
+  const who = reply.name ? `${reply.name}, ${reply.gradeSection}` : `card ${tap.uid}`;
+  const late = reply.isLate ? ' (LATE)' : '';
+  const sms = reply.smsQueued ? ' - text queued' : '';
+  console.log(`[${gateId}] ${time.padStart(8)}  ${RESULT_LABELS[reply.result].padEnd(14)}  ${who}${late}${sms}`);
+}
 
 // Upload taps. The gate saves every tap locally before sending it, and resends anything
 // the server has not confirmed. Every tap gets a result, so the gate can remove it from its outbox.
@@ -27,7 +48,11 @@ router.post('/taps', (req, res) => {
   // Oldest first, so time in / time out toggles in the order the student actually tapped.
   valid.sort((a, b) => String(a.tappedAt).localeCompare(String(b.tappedAt)));
 
-  const results = valid.map((t) => recordTap({ ...t, gateId: req.gateId }));
+  const results = valid.map((t) => {
+    const reply = recordTap({ ...t, gateId: req.gateId });
+    logTap(req.gateId, t, reply);
+    return reply;
+  });
   for (const t of invalid) {
     if (typeof t?.clientTapId === 'string') results.push({ clientTapId: t.clientTapId, result: 'rejected' });
   }
@@ -40,13 +65,13 @@ router.post('/taps', (req, res) => {
 // Reply: { cards: { [uid]: { name, gradeSection } } }
 router.get('/roster', (req, res) => {
   const rows = db.prepare(`
-    SELECT c.uid, s.full_name, s.grade_level, s.section
+    SELECT c.uid, s.full_name, s.grade_level, s.strand, s.section
     FROM cards c JOIN students s ON s.id = c.student_id
     WHERE c.status = 'active' AND s.active = 1
   `).all();
   const cards = {};
   for (const r of rows) {
-    cards[r.uid] = { name: r.full_name, gradeSection: `Grade ${r.grade_level} - ${r.section}` };
+    cards[r.uid] = { name: r.full_name, gradeSection: classLabel(r) };
   }
   res.json({ cards });
 });

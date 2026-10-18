@@ -14,11 +14,12 @@ setInterval(() => {
   field('clock').textContent = new Date().toLocaleTimeString('en-US');
 }, 1000);
 
-function show({ state, banner = '', label = '', name = '', detail = '', note = '' }) {
+function show({ state, banner = '', label = '', name = '', strand = '', detail = '', note = '' }) {
   screen.className = state;
   field('banner').textContent = banner;
   field('label').textContent = label;
   field('name').textContent = name;
+  field('strand').textContent = strand; // grade, strand and section, e.g. "Grade 12 - STEM A"
   field('detail').textContent = detail;
   field('note').textContent = note;
   clearTimeout(resetTimer);
@@ -50,7 +51,8 @@ function render(reply, uid) {
       state: 'offline',
       banner: 'OFFLINE: TAP SAVED',
       name: student ? student.name : 'Tap saved',
-      detail: student ? `${student.gradeSection} | ${now()}` : now(),
+      strand: student ? student.gradeSection : '',
+      detail: now(),
       note: 'Text will be sent when back online',
     });
     return beep(880);
@@ -63,12 +65,19 @@ function render(reply, uid) {
         state: 'ok',
         label: reply.result === 'time_in' ? (reply.isLate ? 'TIME IN (LATE)' : 'TIME IN') : 'TIME OUT',
         name: reply.name,
-        detail: `${reply.gradeSection} | ${now()}`,
+        strand: reply.gradeSection,
+        detail: now(),
         note: 'Parent will be notified by SMS',
       });
       return beep(880);
     case 'cooldown':
-      show({ state: 'ok', label: 'ALREADY TAPPED', name: reply.name, note: 'Your tap was already recorded' });
+      show({
+        state: 'ok',
+        label: 'ALREADY TAPPED',
+        name: reply.name,
+        strand: reply.gradeSection,
+        note: 'Your tap was already recorded',
+      });
       return beep(880);
     default: // unregistered or inactive card (screen 4)
       show({

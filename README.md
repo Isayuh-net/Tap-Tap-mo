@@ -88,35 +88,38 @@ Tap-Tap-mo/
 
 Requires Node.js 22 or newer.
 
-**Server**
+**First time only**
 
 ```bash
 cd server
 npm install
 cp .env.example .env
-npm run dev
-```
-
-Open http://localhost:3000. While `SMS_PROVIDER=mock`, texts are printed in the terminal instead of sent.
-
-**Gate app** (in a second terminal)
-
-```bash
-cd gate-app
+cd ../gate-app
 npm install
 cp config.example.json config.json
-npm start
 ```
 
-The first `npm start` downloads Electron. You don't need a reader to test: type any card number and
-press Enter. A USB reader does the same thing.
+**Every time**, from the main `Tap-Tap-mo` folder, in two terminals:
+
+```bash
+npm run server
+```
+
+```bash
+npm run gate
+```
+
+Open http://localhost:3000 for the dashboard. While `SMS_PROVIDER=mock`, texts are printed in the
+server terminal instead of sent. The first `npm run gate` downloads Electron. You don't need a reader
+to test: type any card number and press Enter. A USB reader does the same thing.
 
 **Register a test card** (until the registration page is built)
 
-Find the card's number by tapping it while Notepad is open: the reader types it. Then, in `server/`:
+Find the card's number by tapping it while Notepad is open: the reader types it. Then, from the main
+`Tap-Tap-mo` folder:
 
 ```bash
-npm run add-student -- --uid 0004567890 --name "Stephanie Lei Polonio" --grade 12 --section "STEM A" --mobile 09170005590
+npm run add-student -- --uid 0004567890 --name "Stephanie Lei Polonio" --grade 12 --strand STEM --section A --mobile 09170005590
 ```
 
 The parent's number is marked as verified, so texts are sent right away. Restart the gate app (or wait

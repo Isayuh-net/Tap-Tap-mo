@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS students (
   lrn             TEXT UNIQUE,                 -- DepEd Learner Reference Number
   full_name       TEXT NOT NULL,
   grade_level     INTEGER NOT NULL CHECK (grade_level IN (11, 12)),
-  section         TEXT NOT NULL,               -- e.g. "STEM A"
+  strand          TEXT NOT NULL DEFAULT '',    -- e.g. "STEM", "ABM", "HUMSS", "TVL-ICT"
+  section         TEXT NOT NULL,               -- e.g. "A"
   guardian_name   TEXT,
   guardian_mobile TEXT,                        -- stored as 09XXXXXXXXX
   mobile_verified_at TEXT,                     -- NULL = not verified, no attendance texts sent (US-05)

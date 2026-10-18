@@ -17,6 +17,7 @@ const config = require('../config');
 const messages = require('./messages');
 const { schoolDate, schoolTime } = require('../utils/time');
 const { normalizeUid } = require('../utils/normalize');
+const { classLabel } = require('../utils/classLabel');
 
 const findTap = db.prepare('SELECT * FROM taps WHERE client_tap_id = ?');
 
@@ -46,10 +47,6 @@ const insertSms = db.prepare(`
   VALUES (@kind, @tapId, @studentId, @toMobile, @body)
 `);
 
-function gradeSection(student) {
-  return `Grade ${student.grade_level} - ${student.section}`;
-}
-
 // What the gate needs to show for a saved tap.
 function toReply({ clientTapId, result, isLate }, student, smsQueued) {
   return {
@@ -57,7 +54,7 @@ function toReply({ clientTapId, result, isLate }, student, smsQueued) {
     result,
     isLate: Boolean(isLate),
     name: student ? student.full_name : null,
-    gradeSection: student ? gradeSection(student) : null,
+    gradeSection: student ? classLabel(student) : null,
     smsQueued,
   };
 }
@@ -115,8 +112,8 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
   const isAttendance = tap.result === 'time_in' || tap.result === 'time_out';
   if (isAttendance && student.guardian_mobile && student.mobile_verified_at) {
     const body = tap.result === 'time_in'
-      ? messages.timeIn(student.full_name, date, tap.isLate)
-      : messages.timeOut(student.full_name, date);
+      ? messages.timeIn(student.full_name, classLabel(student), date, tap.isLate)
+      : messages.timeOut(student.full_name, classLabel(student), date);
     insertSms.run({ kind: tap.result, tapId, studentId: student.id, toMobile: student.guardian_mobile, body });
     smsQueued = true;
   }
