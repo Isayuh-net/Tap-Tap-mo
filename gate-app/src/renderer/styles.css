@@ -25,4 +25,5 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 #detail { font-size: 2rem; opacity: 0.9; }
 #note   { font-size: 1.5rem; opacity: 0.8; }
 
-#scan { position: absolute; opacity: 0; pointer-events: none; }
+#scan { position: absolute; top: 0; left: 0; opacity: 0; pointer-events: none; } /* top/left: no scrollbar */
+html, body { overflow: hidden; }
