@@ -2,7 +2,7 @@
 // A new student is saved with an UNVERIFIED parent number; verification.js marks it verified.
 const db = require('../db');
 const { normalizeUid, normalizeMobile } = require('../utils/normalize');
-const { canonicalStrand } = require('../utils/strands');
+const { STRANDS, canonicalStrand } = require('../utils/strands');
 const { classLabel } = require('../utils/classLabel');
 const { httpError } = require('../utils/httpError');
 
@@ -47,9 +47,11 @@ function checkFields(body, { requireMobile = true } = {}) {
   const problems = [];
   if (!fields.fullName || fields.fullName.length > 100) problems.push('enter the student\'s full name');
   if (fields.gradeLevel !== 11 && fields.gradeLevel !== 12) problems.push('grade must be 11 or 12');
-  if (!fields.strand) problems.push(body.strand ? `"${body.strand}" is not a known strand` : 'choose a strand');
+  if (!fields.strand) {
+    problems.push(`choose a strand: ${STRANDS.join(', ')}${body.strand ? ` ("${body.strand}" is not one)` : ''}`);
+  }
   if (!fields.section || fields.section.length > 30) problems.push('enter the section');
-  if (rawMobile && !fields.guardianMobile) problems.push(`"${rawMobile}" is not a valid mobile number`);
+  if (rawMobile && !fields.guardianMobile) problems.push(`enter a valid mobile number, like 09171234567 ("${rawMobile}" is not)`);
   if (!rawMobile && requireMobile) problems.push('enter a valid mobile number, like 09171234567');
   return { fields, problems };
 }
