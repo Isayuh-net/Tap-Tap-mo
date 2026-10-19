@@ -14,7 +14,16 @@ router.get('/:uid', (req, res) => {
   res.json(found ? { registered: true, ...found } : { registered: false });
 });
 
-router.post('/', todo);                 // { uid, studentId } link a replacement card; deactivates the old one
+// Link a card to a student who has no card yet. Body: { uid, studentId }. Reply: the student.
+router.post('/', (req, res) => {
+  res.status(201).json(students.assignCard(req.body?.uid, Number(req.body?.studentId)));
+});
+
+// Undo a card linked by mistake (only before it has been used at the gate).
+router.delete('/:uid', (req, res) => {
+  res.json(students.removeUnusedCard(req.params.uid));
+});
+
 router.post('/:uid/deactivate', todo);  // mark lost or returned
 
 module.exports = router;

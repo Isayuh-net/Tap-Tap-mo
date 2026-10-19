@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verify numbers | Tap-Tap Mo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
+  <main>
+    <h2>Verify parent numbers</h2>
+    <p class="subtitle">Text a code to every parent in a class. Parents give the code to their child, and the
+      adviser types it in here. Only verified numbers get attendance texts.</p>
+
+    <section class="panel block">
+      <label>Class
+        <select id="class"><option value="">Choose a class...</option></select>
+      </label>
+      <p id="summary" class="hint"></p>
+      <div id="send-box" class="actions" hidden>
+        <button type="button" id="send-all" class="primary">Send codes</button>
+        <span class="hint">Each text uses one SMS credit. Codes work for 3 days.</span>
+      </div>
+    </section>
+
+    <p id="message" class="message" role="status"></p>
+
+    <section id="list" class="panel block" hidden>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Student</th><th>Parent number</th><th>Status</th><th>Code</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/verify-class.js"></script>
+</body>
+</html>

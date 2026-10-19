@@ -17,5 +17,9 @@ const studentColumns = db.prepare('PRAGMA table_info(students)').all().map((c) =
 if (!studentColumns.includes('strand')) {
   db.exec("ALTER TABLE students ADD COLUMN strand TEXT NOT NULL DEFAULT ''");
 }
+const codeColumns = db.prepare('PRAGMA table_info(verification_codes)').all().map((c) => c.name);
+if (!codeColumns.includes('created_at')) {
+  db.exec('ALTER TABLE verification_codes ADD COLUMN created_at TEXT'); // older codes stay NULL
+}
 
 module.exports = db;

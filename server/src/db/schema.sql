@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS sms_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_sms_status ON sms_messages (status, next_attempt_at);
 
--- 6-digit codes texted to parents at registration. Only the hash is stored. (US-05)
+-- 6-digit codes texted to parents, at registration or to a whole class. Only the hash is stored. (US-05)
 CREATE TABLE IF NOT EXISTS verification_codes (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   student_id  INTEGER NOT NULL REFERENCES students(id),
@@ -70,7 +70,8 @@ CREATE TABLE IF NOT EXISTS verification_codes (
   code_hash   TEXT NOT NULL,
   expires_at  TEXT NOT NULL,
   attempts    INTEGER NOT NULL DEFAULT 0,
-  verified_at TEXT
+  verified_at TEXT,
+  created_at  TEXT                             -- when the code was texted
 );
 
 -- Staff accounts for the dashboard.

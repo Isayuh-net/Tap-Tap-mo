@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import students | Tap-Tap Mo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
+  <main>
+    <h2>Import students</h2>
+    <p class="subtitle">Add a whole class or the whole school from a spreadsheet. Cards are assigned afterwards.</p>
+
+    <section class="panel block">
+      <h3>1. Prepare the file</h3>
+      <ul class="steps">
+        <li>Use the school's enrollment list (for example the SF1 School Register), or fill in the
+          <a href="templates/students-template.csv" download>blank template</a>.</li>
+        <li>It needs columns for the student's name, <b>Grade</b>, <b>Strand</b> and <b>Section</b>.
+          Recommended: <b>LRN</b>, parent or guardian name, and <b>parent mobile number</b>.</li>
+        <li>The name can be one column ("Dela Cruz, Juan, Santos") or separate First, Middle and Last Name columns.</li>
+        <li>In Excel, choose <b>File &gt; Save As &gt; CSV UTF-8</b>. Format the LRN column as Text first,
+          or Excel may change long numbers.</li>
+      </ul>
+    </section>
+
+    <section class="panel block">
+      <h3>2. Choose the CSV file</h3>
+      <input id="file" type="file" accept=".csv,text/csv">
+      <p class="hint">Nothing is saved yet. You'll see a preview first.</p>
+    </section>
+
+    <p id="message" class="message" role="status"></p>
+
+    <section id="preview" class="panel block" hidden>
+      <h3>3. Check the preview</h3>
+      <p id="columns" class="hint"></p>
+      <div id="summary" class="summary"></div>
+      <div class="actions">
+        <button type="button" id="import" class="primary">Import</button>
+        <label class="inline"><input type="checkbox" id="problems-only"> Show only rows that need attention</label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Row</th><th>Name</th><th>Class</th><th>LRN</th><th>Parent</th><th>Mobile</th><th>Status</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/import.js"></script>
+</body>
+</html>

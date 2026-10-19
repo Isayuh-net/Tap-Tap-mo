@@ -38,7 +38,7 @@ Tap-Tap-mo/
 │   │   ├── routes/             The API: one file per area (URLs only, logic lives in services/)
 │   │   │   ├── gate.js         Taps from the gate apps, roster for offline names
 │   │   │   ├── auth.js         Staff login
-│   │   │   ├── students.js     Student records
+│   │   │   ├── students.js     Student records, CSV import
 │   │   │   ├── cards.js        Link, replace, deactivate RFID cards
 │   │   │   ├── verification.js Parent mobile number code
 │   │   │   ├── attendance.js   Today's taps and counts
@@ -48,6 +48,7 @@ Tap-Tap-mo/
 │   │   │   ├── attendance.js   Time in/out toggle, cooldown, late detection
 │   │   │   ├── smsQueue.js     Background sending and retries
 │   │   │   ├── messages.js     Text templates (one SMS credit each)
+│   │   │   ├── studentImport.js  Reading and checking CSV student lists
 │   │   │   ├── backup.js       Nightly database backup
 │   │   │   └── sms/            SMS providers, all with the same functions
 │   │   │       ├── index.js    Picks the provider from SMS_PROVIDER
@@ -122,6 +123,23 @@ Open http://localhost:3000 for the dashboard and log in. While `SMS_PROVIDER=moc
 server terminal instead of sent. The first `npm run gate` downloads Electron. You don't need a reader
 to test: type any card number and press Enter. A USB reader does the same thing.
 
+**Add many students at once**
+
+1. **Import students**: upload the enrollment list (for example the SF1 School Register) saved from
+   Excel as **CSV UTF-8**, or fill in the template on that page. You see a preview of every row first,
+   with problems (bad grade, unknown strand, invalid number, LRN changed by Excel) and students already
+   added. Only the good new rows are imported, so you can fix the file and import it again safely.
+2. **Assign cards**: choose a class and tap cards one after another. Each tap goes to the next student
+   without a card. Use **Skip** for absent students and **Undo last card** for a wrong tap.
+3. **Verify numbers**: choose a class and click **Send codes**. Every unverified parent with a number gets
+   a code that works for 3 days. Parents give the code to their child, and the adviser types it in on
+   the same page. Texts that fail (usually a wrong number) are shown so staff can fix the number.
+   Sending again skips parents who already have a working code. Advisers (teacher accounts) can enter
+   codes; only admin and staff can send texts, since each one uses an SMS credit.
+
+To recognize your school's own column names, add them to `COLUMN_NAMES` in
+`server/src/services/studentImport.js`.
+
 **Register a student and card**
 
 Plug a USB reader into the computer with the dashboard, open **Register card**, tap the card, fill in the
@@ -154,9 +172,9 @@ Restart the gate app (or wait 5 minutes) so it downloads new names for offline m
 ## Status
 
 Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and
-delivery status, mock SMS provider), staff login, and student and card registration with parent number
-verification. Not built yet: Cast PH provider, replacing lost cards, and the dashboard, students, SMS log
-and reports pages. Routes that are not built yet answer `501 Not implemented`.
+delivery status, mock SMS provider), staff login, student and card registration with parent number
+verification, CSV import of students, tap-to-assign cards by class, and verifying parent numbers a class at a time.
+Not built yet: Cast PH provider, replacing lost cards, and the dashboard, students, SMS log and reports pages. Routes that are not built yet answer `501 Not implemented`.
 
 ## To confirm with Cast PH
 

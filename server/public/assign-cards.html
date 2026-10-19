@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assign cards | Tap-Tap Mo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
+  <main>
+    <h2>Assign cards</h2>
+    <p class="subtitle">Choose a class, then tap each student's card in order. Plug a USB RFID reader into this computer.</p>
+
+    <section class="panel block">
+      <label>Class
+        <select id="class"><option value="">Choose a class...</option></select>
+      </label>
+      <p id="progress" class="hint"></p>
+    </section>
+
+    <section id="tap-panel" class="panel block next-panel" hidden>
+      <div class="next-label">Next student</div>
+      <div id="next-name" class="next-name"></div>
+      <div id="next-detail" class="hint"></div>
+      <label class="tap-input">Tap the card for this student
+        <input id="uid" autocomplete="off" placeholder="Card number fills in automatically">
+      </label>
+      <div class="actions">
+        <button type="button" id="skip">Skip (absent)</button>
+        <button type="button" id="undo" disabled>Undo last card</button>
+      </div>
+    </section>
+
+    <p id="message" class="message" role="status"></p>
+
+    <section id="list" class="panel block" hidden>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Student</th><th>Card</th><th>Parent number</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/assign.js"></script>
+</body>
+</html>

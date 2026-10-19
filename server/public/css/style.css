@@ -89,3 +89,35 @@ button:disabled { opacity: 0.5; cursor: default; }
   nav { width: auto; }
   .register-layout, .row { grid-template-columns: 1fr; }
 }
+
+/* Tables, badges and sections used by the Import and Assign cards pages */
+.block { margin-bottom: 20px; }
+.block h3 { margin-top: 0; }
+label.inline { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: normal; }
+label.inline input { width: auto; margin: 0; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th { text-align: left; background: #f0efe9; font-weight: 600; }
+th, td { padding: 8px 10px; border-bottom: 1px solid #e5e5e5; vertical-align: top; }
+.summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.badge.new { background: #e8f0fb; color: #23497e; }
+.badge.imported, .badge.ok { background: #e3f4ea; color: #145c38; }
+.badge.duplicate, .badge.waiting { background: #eee; color: #555; }
+.badge.error { background: #fbe4e2; color: #8a1f17; }
+.note { font-size: 0.8rem; margin-top: 4px; }
+.note.problem { color: #8a1f17; }
+.note.warning { color: #8a5a00; }
+
+/* Assign cards page */
+.next-panel { border: 2px solid #3b6fb6; }
+.next-label { font-size: 0.85rem; font-weight: 600; color: #23497e; text-transform: uppercase; letter-spacing: 0.05em; }
+.next-name { font-size: 2rem; font-weight: 700; margin: 4px 0; }
+.tap-input { margin-top: 14px; }
+.tap-input input { font-family: ui-monospace, monospace; font-size: 1.1rem; max-width: 360px; }
+tr.next-row td { background: #e8f0fb; font-weight: 600; }
+td button { padding: 4px 10px; font-size: 0.8rem; }
+
+/* Verify numbers page */
+.code-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.code-input { width: 120px; margin: 0; font-family: ui-monospace, monospace; }

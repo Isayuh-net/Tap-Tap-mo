@@ -46,7 +46,7 @@ function timeOut(name, classLabel, date) {
 }
 
 function verificationCode(code) {
-  return check(`${sender}: Your Tap-Tap Mo verification code is ${code}. Give it only to the school staff registering your child.`);
+  return check(`${sender}: Your Tap-Tap Mo verification code is ${code}. Give it only to your child's adviser or the school staff.`);
 }
 
 module.exports = { timeIn, timeOut, verificationCode, fitsOneCredit };
