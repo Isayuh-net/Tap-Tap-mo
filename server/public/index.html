@@ -9,11 +9,61 @@
 <body>
   <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
   <main>
-    <h2>Today's attendance</h2>
-    <!-- TODO (US-09, US-10, US-12): internet status, SMS credits, present/late/absent/texts cards,
-         and today's taps with text status (GET /api/attendance/today, /api/sms/stats) -->
+    <!-- Figure 5 of the design doc. US-09, US-10, US-12 -->
+    <div class="page-head">
+      <div>
+        <h2>Today's attendance</h2>
+        <p id="today" class="subtitle"></p>
+      </div>
+      <div class="chips">
+        <span id="internet" class="chip">Internet: checking...</span>
+        <span id="credits" class="chip">SMS credits: ...</span>
+        <span id="backup" class="chip" hidden></span>
+        <a class="button primary" href="reports.html">Export report</a>
+      </div>
+    </div>
+
+    <p id="notice" class="message info"></p>
+
+    <div class="cards">
+      <div class="card present"><div class="card-label">Present</div><div id="present" class="card-number">-</div><div id="present-note" class="card-note"></div></div>
+      <div class="card late"><div class="card-label">Late</div><div id="late" class="card-number">-</div><div id="late-note" class="card-note"></div></div>
+      <div class="card absent"><div class="card-label">Absent</div><div id="absent" class="card-number">-</div><div class="card-note">no tap yet today</div></div>
+      <div class="card texts"><div class="card-label">Texts sent today</div><div id="texts" class="card-number">-</div><div id="texts-note" class="card-note"></div></div>
+    </div>
+
+    <section id="failed-box" class="panel block attention" hidden>
+      <div class="page-head">
+        <h3 id="failed-title">Texts that failed</h3>
+        <a class="button" href="sms-log.html?status=failed">Fix them in the SMS log</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Student</th><th>Text</th><th>Number</th><th>Reason</th></tr></thead>
+          <tbody id="failed-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel block">
+      <div class="filters">
+        <input id="search" type="search" placeholder="Search student...">
+        <select id="class"><option value="">All classes</option></select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Student</th><th>Grade and section</th><th>Type</th><th>Late?</th><th>Parent mobile</th><th>Text status</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="empty" class="hint" hidden>No taps yet today.</p>
+      <p class="hint">Updates every 15 seconds. Mobile numbers are partly hidden for privacy.</p>
+    </section>
   </main>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/dashboard.js"></script>
 </body>
 </html>

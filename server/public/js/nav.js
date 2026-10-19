@@ -10,7 +10,7 @@ const MENU = [
   ['import.html', 'Import students', ['admin', 'staff']],
   ['assign-cards.html', 'Assign cards', ['admin', 'staff']],
   ['verify-class.html', 'Verify numbers', []],
-  ['sms-log.html', 'SMS log', []],
+  ['sms-log.html', 'SMS log', ['admin', 'staff']],
   ['reports.html', 'Reports', []],
 ];
 

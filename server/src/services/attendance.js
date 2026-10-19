@@ -5,7 +5,8 @@
 //  2. Finds the active card and its student -> 'unregistered' or 'inactive' if not usable.
 //  3. Cooldown: a tap within COOLDOWN_SECONDS of the student's previous tap -> 'cooldown'.
 //  4. Toggle: first tap of the school day, or a tap after a time out -> 'time_in'; otherwise 'time_out'.
-//  5. Marks the first time in of the day as late if it is after LATE_AFTER.
+//  5. Marks the first time in of a school day as late if it is after LATE_AFTER (never on weekends
+//     or holidays, so nobody gets a "LATE" text for coming in on a Saturday).
 //  6. Saves the tap and, if the parent's number is verified, queues the text in sms_messages,
 //     both in one transaction, so a tap is never saved without its text.
 //
@@ -17,6 +18,7 @@ const config = require('../config');
 const messages = require('./messages');
 const { schoolDate, schoolTime } = require('../utils/time');
 const { normalizeUid } = require('../utils/normalize');
+const { schoolDayInfo } = require('./schoolDays');
 const { classLabel } = require('../utils/classLabel');
 
 const findTap = db.prepare('SELECT * FROM taps WHERE client_tap_id = ?');
@@ -99,7 +101,7 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
       tap.result = 'cooldown';
     } else if (!previous || previous.result === 'time_out') {
       tap.result = 'time_in';
-      tap.isLate = !previous && schoolTime(date) > config.lateAfter ? 1 : 0;
+      tap.isLate = !previous && schoolDayInfo(tap.schoolDate).schoolDay && schoolTime(date) > config.lateAfter ? 1 : 0;
     } else {
       tap.result = 'time_out';
     }

@@ -134,6 +134,20 @@ const update = db.transaction((id, body) => {
   return toJson(findStudent.get(id));
 });
 
+// Corrects a parent's number (for example after a text failed). A new number must be verified again.
+function changeMobile(id, mobile) {
+  const student = findStudent.get(id);
+  if (!student) throw httpError(404, 'Student not found.');
+  const normalized = normalizeMobile(mobile);
+  if (!normalized) throw httpError(400, `"${mobile ?? ''}" is not a valid mobile number, like 09171234567.`);
+  db.prepare(`
+    UPDATE students
+    SET guardian_mobile = ?, mobile_verified_at = CASE WHEN guardian_mobile = ? THEN mobile_verified_at ELSE NULL END
+    WHERE id = ?
+  `).run(normalized, normalized, id);
+  return toJson(findStudent.get(id));
+}
+
 // Links a card to a student who has no card yet (used by the Assign cards page).
 const assignCard = db.transaction((uid, studentId) => {
   uid = normalizeUid(uid);
@@ -160,4 +174,4 @@ const removeUnusedCard = db.transaction((uid) => {
   return { removed: uid };
 });
 
-module.exports = { checkFields, list, classes, findByCard, create, update, assignCard, removeUnusedCard };
+module.exports = { checkFields, list, classes, findByCard, create, update, changeMobile, assignCard, removeUnusedCard };

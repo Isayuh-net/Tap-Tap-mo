@@ -10,10 +10,39 @@
   <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
   <main>
     <h2>SMS log</h2>
-    <!-- TODO (US-11): texts filtered by status (queued, failed), link to the student to fix the
-         number, retry button (GET /api/sms, POST /api/sms/:id/retry) -->
+    <p class="subtitle">Every text the system sends. Fix failed texts here: correct the number, verify it, then send again. (US-11)</p>
+
+    <section class="panel block">
+      <div class="filters">
+        <label>Show
+          <select id="status">
+            <option value="attention">Needs attention (failed or waiting)</option>
+            <option value="failed">Failed</option>
+            <option value="queued">Waiting to send</option>
+            <option value="sent">Sent and delivered</option>
+            <option value="all">All texts</option>
+          </select>
+        </label>
+        <label>Date (optional)
+          <input id="date" type="date">
+        </label>
+      </div>
+      <p id="count" class="hint"></p>
+    </section>
+
+    <p id="message" class="message" role="status"></p>
+
+    <section class="panel block">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Student</th><th>Text</th><th>To</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/sms-log.js"></script>
 </body>
 </html>

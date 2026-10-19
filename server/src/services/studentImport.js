@@ -98,6 +98,8 @@ function composeName(get) {
   }
   const parts = get('fullName').split(',').map((p) => p.trim()).filter(Boolean);
   if (parts.length === 3) return [parts[1], initial(parts[2]), parts[0]].filter(Boolean).join(' ');
+  // "Go, Jr." is "First Last, Suffix", not "Last, First": keep the order
+  if (parts.length === 2 && /^(jr|sr).?$|^(ii|iii|iv|v)$/i.test(parts[1])) return `${parts[0]} ${parts[1]}`;
   if (parts.length === 2) return `${parts[1]} ${parts[0]}`; // "Last, First Middle"
   return get('fullName');
 }

@@ -9,11 +9,51 @@
 <body>
   <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
   <main>
-    <h2>Reports</h2>
-    <!-- TODO (US-13): daily and monthly reports by section, export to CSV/Excel
-         (GET /api/reports/daily, /api/reports/monthly) -->
+    <h2 class="no-print">Reports</h2>
+    <p class="subtitle no-print">Daily and monthly attendance. Download as CSV (opens in Excel) or print / save as PDF. (US-13)</p>
+
+    <section class="panel block no-print">
+      <div class="tabs">
+        <button type="button" id="tab-daily" class="tab active">Daily</button>
+        <button type="button" id="tab-monthly" class="tab">Monthly</button>
+      </div>
+      <div class="filters">
+        <label id="date-label">Date <input id="date" type="date"></label>
+        <label id="month-label" hidden>Month <input id="month" type="month"></label>
+        <label>Class <select id="class"><option value="">All classes</option></select></label>
+      </div>
+      <div class="actions">
+        <a id="download" class="button primary" href="#">Download CSV</a>
+        <button type="button" id="print">Print / save as PDF</button>
+      </div>
+    </section>
+
+    <p id="message" class="message" role="status"></p>
+
+    <section class="panel block">
+      <h3 id="title"></h3>
+      <p id="summary" class="hint"></p>
+      <div class="table-wrap">
+        <table>
+          <thead id="head"></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="holidays-box" class="panel block no-print">
+      <h3>Holidays and no-class days</h3>
+      <p class="hint">Students aren't marked absent on these days, or on weekends.</p>
+      <div id="holiday-form" class="filters" hidden>
+        <input id="holiday-date" type="date">
+        <input id="holiday-name" placeholder="e.g. All Saints' Day" maxlength="100">
+        <button type="button" id="holiday-add">Add</button>
+      </div>
+      <ul id="holidays" class="plain-list"></ul>
+    </section>
   </main>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/reports.js"></script>
 </body>
 </html>

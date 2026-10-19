@@ -19,6 +19,13 @@ module.exports = {
   cooldownMs: (Number(process.env.COOLDOWN_SECONDS) || 30) * 1000,
   gateKeys: parseGateKeys(process.env.GATE_KEYS),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-secret',
+  // Page the server loads every minute to see if the internet is up (a tiny page made for this).
+  internetCheckUrl: process.env.INTERNET_CHECK_URL || 'https://www.google.com/generate_204',
+  backup: {
+    dir: path.resolve(__dirname, '..', process.env.BACKUP_DIR || 'backups'), // can be an external drive, e.g. E:/backups
+    time: process.env.BACKUP_TIME || '18:00',  // daily backup after this time (school time)
+    keep: Number(process.env.BACKUP_KEEP) || 30, // how many daily copies to keep
+  },
   sms: {
     provider: process.env.SMS_PROVIDER || 'mock',
     senderName: process.env.SMS_SENDER_NAME || 'BCNHS',

@@ -41,15 +41,22 @@ Tap-Tap-mo/
 │   │   │   ├── students.js     Student records, CSV import
 │   │   │   ├── cards.js        Link, replace, deactivate RFID cards
 │   │   │   ├── verification.js Parent mobile number code
-│   │   │   ├── attendance.js   Today's taps and counts
-│   │   │   ├── sms.js          SMS log, failed texts, credits
-│   │   │   └── reports.js      Daily and monthly reports, export
+│   │   │   ├── attendance.js   Today's taps and counts (dashboard)
+│   │   │   ├── sms.js          SMS log, failed texts, retry, credits
+│   │   │   ├── reports.js      Daily and monthly reports, CSV export
+│   │   │   ├── holidays.js     No-class days
+│   │   │   └── backups.js      Latest backup, back up now
 │   │   ├── services/           The actual logic
 │   │   │   ├── attendance.js   Time in/out toggle, cooldown, late detection
 │   │   │   ├── smsQueue.js     Background sending and retries
 │   │   │   ├── messages.js     Text templates (one SMS credit each)
 │   │   │   ├── studentImport.js  Reading and checking CSV student lists
-│   │   │   ├── backup.js       Nightly database backup
+│   │   │   ├── verification.js   Parent number codes (one student or a whole class)
+│   │   │   ├── attendanceReports.js  Dashboard counts, daily and monthly reports
+│   │   │   ├── schoolDays.js   Weekdays that aren't holidays
+│   │   │   ├── smsLog.js       SMS log, today's counts, retrying texts
+│   │   │   ├── internet.js     Checks every minute whether the internet is up
+│   │   │   ├── backup.js       Daily database backup
 │   │   │   └── sms/            SMS providers, all with the same functions
 │   │   │       ├── index.js    Picks the provider from SMS_PROVIDER
 │   │   │       ├── mockProvider.js    Prints texts to the console (development)
@@ -76,13 +83,13 @@ Tap-Tap-mo/
 | US-01, US-02 | Time-in and time-out texts | `server/src/services/attendance.js`, `smsQueue.js`, `messages.js` |
 | US-03 | Texts still sent after an outage | `server/src/services/smsQueue.js` |
 | US-04 | Late notice | `server/src/services/attendance.js`, `messages.js` |
-| US-05 | Verify parent mobile number | `server/src/routes/verification.js`, `public/register.html` |
+| US-05 | Verify parent mobile number | `server/src/services/verification.js`, `public/register.html`, `public/verify-class.html` |
 | US-06, US-14 | Gate screen feedback | `gate-app/src/renderer/` |
 | US-07 | Tap saved when offline | `gate-app/src/outbox.js`, `sync.js` |
 | US-08 | Replace lost card | `server/src/routes/cards.js` |
-| US-09, US-10 | Today's attendance and text status | `server/src/routes/attendance.js`, `public/index.html` |
-| US-11 | Queued and failed texts | `server/src/routes/sms.js`, `public/sms-log.html` |
-| US-12 | Texts sent and credits left | `server/src/routes/sms.js` |
+| US-09, US-10 | Today's attendance and text status | `server/src/services/attendanceReports.js`, `public/index.html` |
+| US-11 | Queued and failed texts | `server/src/services/smsLog.js`, `public/sms-log.html` |
+| US-12 | Texts sent and credits left | `server/src/services/smsLog.js`, `public/index.html` |
 | US-13 | Reports export | `server/src/routes/reports.js`, `public/reports.html` |
 
 ## Running it (development)
@@ -169,12 +176,39 @@ Restart the gate app (or wait 5 minutes) so it downloads new names for offline m
 | Register a number ending in `0000` | The text is marked failed (invalid number) |
 | Set `MOCK_SMS_FAIL_RATE=1`, restart the server, tap | The text stays queued and retries; set it back to `0` and it sends |
 
+## Daily use
+
+- **Dashboard**: today's present, late and absent counts, texts sent, internet and SMS credit status,
+  the last backup (admins), failed texts, and every tap with its text status. It updates every 15 seconds.
+- **SMS log** (admin and staff): failed and waiting texts. For a wrong number, click **Change number**,
+  verify the new number on **Verify numbers**, then click **Send again**.
+- **Reports**: daily or monthly attendance for one class or all, as a table, a CSV file for Excel, or
+  printed / saved as PDF. Absent counts only school days: weekdays that aren't in the holiday list (admins
+  add holidays at the bottom of the Reports page), counted from the day each student was added.
+- **Login**: after 5 wrong passwords, that username is locked for 15 minutes.
+
+**Backups**
+
+The server saves a copy of the database every day after 6:00 PM, or as soon as it starts if the newest
+copy is over a day old, and keeps the newest 30. Set `BACKUP_DIR` in `server/.env` to an external drive
+(for example `E:/tap-tap-mo-backups`). To make one right away:
+
+```bash
+npm run backup
+```
+
+To restore: stop the server, copy a backup over `server/data/tap-tap-mo.db`, delete
+`tap-tap-mo.db-wal` and `tap-tap-mo.db-shm` in the same folder if they exist, and start the server.
+Backups hold students' and parents' personal data (Data Privacy Act), so keep the drive locked away.
+
 ## Status
 
 Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and
 delivery status, mock SMS provider), staff login, student and card registration with parent number
-verification, CSV import of students, tap-to-assign cards by class, and verifying parent numbers a class at a time.
-Not built yet: Cast PH provider, replacing lost cards, and the dashboard, students, SMS log and reports pages. Routes that are not built yet answer `501 Not implemented`.
+verification, CSV import of students, tap-to-assign cards by class, verifying parent numbers a class at a time, the
+dashboard, SMS log with retry, daily and monthly reports, holidays, daily backups, and a login lock.
+Not built yet: Cast PH provider, replacing lost cards, the Students page (search and edit), and
+deactivating students. Routes that are not built yet answer `501 Not implemented`.
 
 ## To confirm with Cast PH
 

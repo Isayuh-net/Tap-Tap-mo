@@ -37,6 +37,11 @@ router.put('/:id', requireLogin('admin', 'staff'), (req, res) => {
   res.json(students.update(Number(req.params.id), req.body ?? {}));
 });
 
+// Correct a parent's number. Body: { guardianMobile }. A changed number must be verified again.
+router.patch('/:id/mobile', requireLogin('admin', 'staff'), (req, res) => {
+  res.json(students.changeMobile(Number(req.params.id), req.body?.guardianMobile));
+});
+
 router.patch('/:id/active', requireLogin('admin'), todo);  // deactivate when a student leaves
 
 module.exports = router;

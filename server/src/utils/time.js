@@ -26,4 +26,33 @@ function displayDate(date) {
   return date.toLocaleDateString('en-US', { timeZone, month: 'short', day: 'numeric' });
 }
 
-module.exports = { schoolDate, schoolTime, displayTime, displayDate };
+// The school's UTC offset. The Philippines is UTC+8 all year (no daylight saving time).
+const SCHOOL_UTC_OFFSET = '+08:00';
+
+// "2026-10-19" -> true. Checks it is a real date, not just the right shape.
+function isDateString(text) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(text))) return false;
+  const date = new Date(`${text}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(text);
+}
+
+// The start and end of a school day in UTC, for filtering columns saved in UTC (like created_at).
+function dayRangeUtc(dateString) {
+  const start = new Date(`${dateString}T00:00:00${SCHOOL_UTC_OFFSET}`);
+  return { start: start.toISOString(), end: new Date(start.getTime() + 24 * 60 * 60 * 1000).toISOString() };
+}
+
+// Monday to Friday (the day of the week doesn't depend on the time zone for a plain date).
+function isWeekday(dateString) {
+  const day = new Date(`${dateString}T00:00:00Z`).getUTCDay();
+  return day >= 1 && day <= 5;
+}
+
+// Every date of a month, "2026-10" -> ["2026-10-01", ..., "2026-10-31"]
+function datesOfMonth(month) {
+  const [year, m] = month.split('-').map(Number);
+  const days = new Date(Date.UTC(year, m, 0)).getUTCDate();
+  return Array.from({ length: days }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`);
+}
+
+module.exports = { schoolDate, schoolTime, displayTime, displayDate, isDateString, dayRangeUtc, isWeekday, datesOfMonth };
