@@ -1,4 +1,4 @@
-/* Staff dashboard styles (layout from Figure 5 of the design doc). */
+/* Staff dashboard styles (layout from Figures 5 and 6 of the design doc). */
 * { box-sizing: border-box; }
 
 body {
@@ -12,12 +12,80 @@ body {
 
 nav {
   width: 200px;
+  flex-shrink: 0;
   background: #2b2b2b;
   color: #fff;
   padding: 16px 0;
+  display: flex;
+  flex-direction: column;
 }
 nav h1 { font-size: 1.1rem; margin: 0 16px 16px; }
 nav a { display: block; padding: 10px 16px; color: #ccc; text-decoration: none; }
 nav a.active, nav a:hover { background: #444; color: #fff; }
+.nav-user { margin-top: auto; padding: 16px; font-size: 0.85rem; color: #aaa; }
+.nav-user button { margin-top: 8px; width: 100%; }
 
-main { flex: 1; padding: 24px; }
+main { flex: 1; padding: 24px; max-width: 1100px; }
+h2 { margin: 0 0 4px; }
+.subtitle { margin: 0 0 20px; color: #666; }
+
+.panel { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+
+/* Forms */
+label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 14px; }
+input, select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 10px;
+  font: inherit;
+  font-weight: normal;
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  background: #fff;
+}
+input:focus, select:focus { outline: 2px solid #3b6fb6; border-color: #3b6fb6; }
+input:disabled, select:disabled { background: #f0f0f0; color: #555; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+button {
+  font: inherit;
+  padding: 9px 16px;
+  border-radius: 6px;
+  border: 1px solid #3b6fb6;
+  background: #fff;
+  color: #3b6fb6;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary { background: #1f7a52; border-color: #1f7a52; color: #fff; }
+button:disabled { opacity: 0.5; cursor: default; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+
+/* Messages */
+.message { padding: 10px 12px; border-radius: 6px; margin: 0 0 14px; }
+.message:empty { display: none; }
+.message.ok { background: #e3f4ea; color: #145c38; }
+.message.error { background: #fbe4e2; color: #8a1f17; }
+.message.info { background: #e8f0fb; color: #23497e; }
+.hint { font-size: 0.85rem; color: #666; font-weight: normal; margin: 6px 0 0; }
+
+/* Registration page (Figure 6) */
+.register-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start; }
+.step-box { background: #e8f0fb; border: 1px solid #3b6fb6; border-radius: 6px; padding: 14px; margin-bottom: 18px; }
+.step-box label { color: #23497e; margin-bottom: 0; }
+#uid { font-family: ui-monospace, monospace; font-size: 1.1rem; letter-spacing: 0.05em; }
+.steps { padding-left: 20px; margin: 0; line-height: 1.6; }
+.steps li { margin-bottom: 8px; }
+
+/* Login page */
+.login-page { justify-content: center; align-items: center; }
+.login-box { width: 340px; }
+.login-box h1 { margin: 0 0 4px; font-size: 1.4rem; }
+
+@media (max-width: 800px) {
+  body { flex-direction: column; }
+  nav { width: auto; }
+  .register-layout, .row { grid-template-columns: 1fr; }
+}

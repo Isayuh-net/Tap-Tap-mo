@@ -97,7 +97,16 @@ cp .env.example .env
 cd ../gate-app
 npm install
 cp config.example.json config.json
+cd ..
 ```
+
+Then create your staff login for the dashboard (you'll be asked for a password):
+
+```bash
+npm run add-user -- --username admin --name "Isaiah Angelo G. Masing" --role admin
+```
+
+Roles: `admin` (everything), `staff` (registration, fixing numbers), `teacher` (viewing attendance).
 
 **Every time**, from the main `Tap-Tap-mo` folder, in two terminals:
 
@@ -109,21 +118,25 @@ npm run server
 npm run gate
 ```
 
-Open http://localhost:3000 for the dashboard. While `SMS_PROVIDER=mock`, texts are printed in the
+Open http://localhost:3000 for the dashboard and log in. While `SMS_PROVIDER=mock`, texts are printed in the
 server terminal instead of sent. The first `npm run gate` downloads Electron. You don't need a reader
 to test: type any card number and press Enter. A USB reader does the same thing.
 
-**Register a test card** (until the registration page is built)
+**Register a student and card**
 
-Find the card's number by tapping it while Notepad is open: the reader types it. Then, from the main
-`Tap-Tap-mo` folder:
+Plug a USB reader into the computer with the dashboard, open **Register card**, tap the card, fill in the
+student and parent details, and click **Save and send verification code**. In test mode the code is
+printed in the server terminal instead of texted; type it in and click **Verify**. Only verified numbers
+get attendance texts. If the parent isn't there, save anyway and tap the same card later to finish.
+
+Shortcut for test data: `add-student` registers a card and marks the number verified in one step.
+Find the card's number by tapping it while Notepad is open: the reader types it.
 
 ```bash
 npm run add-student -- --uid 0004567890 --name "Stephanie Lei Polonio" --grade 12 --strand STEM --section A --mobile 09170005590
 ```
 
-The parent's number is marked as verified, so texts are sent right away. Restart the gate app (or wait
-5 minutes) so it downloads the new name for offline mode.
+Restart the gate app (or wait 5 minutes) so it downloads new names for offline mode.
 
 **Things to try**
 
@@ -141,8 +154,9 @@ The parent's number is marked as verified, so texts are sent right away. Restart
 ## Status
 
 Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and
-delivery status, mock SMS provider). Not built yet: Cast PH provider, login, registration with
-verification codes, and the dashboard pages. Routes that are not built yet answer `501 Not implemented`.
+delivery status, mock SMS provider), staff login, and student and card registration with parent number
+verification. Not built yet: Cast PH provider, replacing lost cards, and the dashboard, students, SMS log
+and reports pages. Routes that are not built yet answer `501 Not implemented`.
 
 ## To confirm with Cast PH
 

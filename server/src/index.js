@@ -26,6 +26,14 @@ app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/sms', require('./routes/sms'));
 app.use('/api/reports', require('./routes/reports'));
 
+// API errors as JSON. Errors with a status (like 400 or 409) show their message on the page;
+// anything else is logged here and the page only sees a general message.
+app.use('/api', (err, req, res, next) => {
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({ error: status >= 500 ? 'Something went wrong on the server' : err.message });
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public'))); // staff dashboard
 
 app.listen(config.port, '0.0.0.0', () => {

@@ -2,12 +2,19 @@
 const express = require('express');
 const requireLogin = require('../middleware/requireLogin');
 const todo = require('../middleware/notImplemented');
+const students = require('../services/students');
 
 const router = express.Router();
 router.use(requireLogin('admin', 'staff'));
 
-router.get('/:uid', todo);              // who owns this card? (used right after tapping on the register page)
-router.post('/', todo);                 // { uid, studentId } link a card; deactivates the student's old card
+// Who owns this card? Used right after tapping a card on the registration page.
+// Reply: { registered: false } or { registered: true, cardStatus, student }
+router.get('/:uid', (req, res) => {
+  const found = students.findByCard(req.params.uid);
+  res.json(found ? { registered: true, ...found } : { registered: false });
+});
+
+router.post('/', todo);                 // { uid, studentId } link a replacement card; deactivates the old one
 router.post('/:uid/deactivate', todo);  // mark lost or returned
 
 module.exports = router;

@@ -5,6 +5,7 @@
   "scripts": {
     "server": "npm --prefix server run dev",
     "gate": "npm --prefix gate-app start",
-    "add-student": "npm --prefix server run add-student --"
+    "add-student": "npm --prefix server run add-student --",
+    "add-user": "npm --prefix server run add-user --"
   }
 }

@@ -6,11 +6,42 @@
   <title>Login | Tap-Tap Mo</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <main>
-    <h2>Staff login</h2>
-    <!-- TODO: username and password form, POST /api/auth/login -->
-  </main>
+<body class="login-page">
+  <form id="login" class="panel login-box">
+    <h1>Tap-Tap Mo</h1>
+    <p class="subtitle">Staff login</p>
+    <p id="message" class="message" role="alert"></p>
+    <label>Username <input id="username" autocomplete="username" required autofocus></label>
+    <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" class="primary">Log in</button>
+  </form>
+
   <script src="js/api.js"></script>
+  <script>
+    const form = document.getElementById('login');
+    const message = document.getElementById('message');
+
+    // Go back to the page that sent us here, but only within this site.
+    function nextPage() {
+      const next = new URLSearchParams(location.search).get('next') || '';
+      return next.startsWith('/') && !next.startsWith('//') ? next : '/index.html';
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await api('/auth/login', {
+          method: 'POST',
+          body: {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+          },
+        });
+        location.href = nextPage();
+      } catch (err) {
+        showMessage(message, 'error', err.message);
+      }
+    });
+  </script>
 </body>
 </html>

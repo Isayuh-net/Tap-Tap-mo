@@ -17,10 +17,68 @@
   </nav>
   <main>
     <h2>Register student and card</h2>
-    <!-- TODO (US-05, US-08, Figure 6): tap the card on a USB reader plugged into this PC to fill the
-         card number, enter student and parent details, send and confirm the 6-digit code
-         (POST /api/students, /api/cards, /api/verification/send, /api/verification/confirm) -->
+    <p class="subtitle">Used during enrollment. Plug a USB RFID reader into this computer.</p>
+
+    <div class="register-layout">
+      <form id="form" class="panel" novalidate>
+        <p id="message" class="message" role="status"></p>
+
+        <fieldset id="details">
+          <div class="step-box">
+            <label for="uid">Step 1: Tap the new RFID card on the reader</label>
+            <input id="uid" autocomplete="off" placeholder="Card number fills in automatically" autofocus>
+            <p id="card-status" class="hint">Click here first if the number doesn't appear.</p>
+          </div>
+
+          <label>Student full name <input id="fullName" maxlength="100" autocomplete="off"></label>
+          <div class="row">
+            <label>Grade
+              <select id="gradeLevel">
+                <option value="11">Grade 11</option>
+                <option value="12">Grade 12</option>
+              </select>
+            </label>
+            <label>Strand <select id="strand"></select></label>
+            <label>Section <input id="section" maxlength="30" placeholder="e.g. A" autocomplete="off"></label>
+          </div>
+          <label>Parent or guardian name <input id="guardianName" maxlength="100" autocomplete="off"></label>
+          <label>Parent mobile number
+            <input id="guardianMobile" inputmode="tel" placeholder="09XX XXX XXXX" autocomplete="off">
+          </label>
+
+          <div class="actions">
+            <button type="submit" id="send">Save and send verification code</button>
+          </div>
+        </fieldset>
+
+        <fieldset id="verify-step" disabled>
+          <label>Code shown on the parent's phone
+            <input id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code">
+          </label>
+          <div class="actions">
+            <button type="button" id="verify" class="primary">Verify</button>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button type="button" id="next">Start a new registration</button>
+        </div>
+      </form>
+
+      <aside class="panel">
+        <h3>What happens next</h3>
+        <ol class="steps">
+          <li>The card is linked to the student when you click <b>Save and send verification code</b>.</li>
+          <li>A 6-digit code is texted to the parent's mobile number.</li>
+          <li>The parent shows or reads the code to you, and you enter it.</li>
+          <li>Only verified numbers receive attendance texts.</li>
+          <li>If the parent isn't here, save anyway. Tap the same card later to finish verifying.</li>
+        </ol>
+      </aside>
+    </div>
   </main>
   <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/register.js"></script>
 </body>
 </html>
