@@ -1,14 +1,16 @@
 // Attendance views: the dashboard's "today" view, and the daily and monthly reports. (US-09, US-10, US-13)
 //
-// Rules used everywhere:
+// Rules used everywhere (the school day is explained in attendance.js):
 //  - Present = the student timed in that day. Late = their first time in was after LATE_AFTER.
+//  - Late from lunch = came back after LUNCH_END. Left early = tapped out before DISMISSAL_TIME.
 //  - Absent  = no time in on a school day. School days are Monday to Friday, except dates in the
 //    holidays table, counted only from the day the student was added to the system.
 const db = require('../db');
 const config = require('../config');
 const { classLabel } = require('../utils/classLabel');
-const { schoolDate, displayTime, datesOfMonth } = require('../utils/time');
+const { schoolDate, displayTime, clockLabel, datesOfMonth } = require('../utils/time');
 const { schoolDayInfo } = require('./schoolDays');
+const { MOVEMENTS } = require('./attendance');
 
 // Filters shared by every view: { gradeLevel, strand, section, q } -> SQL for the students table "s".
 function studentFilter({ gradeLevel, strand, section, q } = {}) {
@@ -26,11 +28,12 @@ function maskMobile(mobile) {
   return mobile ? `${mobile.slice(0, 4)} *** ${mobile.slice(-4)}` : null;
 }
 
-// "07:30:00" -> "7:30 AM"
-function lateAfterLabel() {
-  const [h, m] = config.lateAfter.split(':').map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
-}
+const TYPE_LABELS = {
+  time_in: 'Time in', lunch_out: 'Lunch out', lunch_in: 'Back from lunch', time_out: 'Time out', early_out: 'Early out',
+};
+
+// Taps that text the parent: arriving, leaving, leaving early, and coming back late from lunch.
+const isTexted = (result, isLate) => ['time_in', 'time_out', 'early_out'].includes(result) || (result === 'lunch_in' && isLate);
 
 const time = (iso) => (iso ? displayTime(new Date(iso)) : '');
 const addedOn = (student) => schoolDate(new Date(student.created_at));
@@ -48,6 +51,12 @@ function today(filters = {}) {
   const late = count(`
     SELECT COUNT(DISTINCT t.student_id) AS n FROM taps t JOIN students s ON s.id = t.student_id
     WHERE t.school_date = ? AND t.result = 'time_in' AND t.is_late = 1 AND ${f.sql}`, date);
+  const lateFromLunch = count(`
+    SELECT COUNT(DISTINCT t.student_id) AS n FROM taps t JOIN students s ON s.id = t.student_id
+    WHERE t.school_date = ? AND t.result = 'lunch_in' AND t.is_late = 1 AND ${f.sql}`, date);
+  const leftEarly = count(`
+    SELECT COUNT(DISTINCT t.student_id) AS n FROM taps t JOIN students s ON s.id = t.student_id
+    WHERE t.school_date = ? AND t.result = 'early_out' AND ${f.sql}`, date);
   const unregisteredTaps = db.prepare(
     "SELECT COUNT(*) AS n FROM taps WHERE school_date = ? AND result = 'unregistered'",
   ).get(date).n;
@@ -58,30 +67,34 @@ function today(filters = {}) {
     FROM taps t
     JOIN students s ON s.id = t.student_id
     LEFT JOIN sms_messages m ON m.tap_id = t.id
-    WHERE t.school_date = ? AND t.result IN ('time_in', 'time_out') AND ${f.sql}
+    WHERE t.school_date = ? AND t.result IN (${MOVEMENTS.map(() => '?').join(', ')}) AND ${f.sql}
     ORDER BY t.tapped_at DESC
     LIMIT 500
-  `).all(date, ...f.params).map((r) => ({
+  `).all(date, ...MOVEMENTS, ...f.params).map((r) => ({
     time: time(r.tapped_at),
     studentId: r.student_id,
     name: r.full_name,
     classLabel: classLabel(r),
-    type: r.result === 'time_in' ? 'Time in' : 'Time out',
+    type: TYPE_LABELS[r.result],
     isLate: Boolean(r.is_late),
     gate: r.gate_id,
     parentMobile: maskMobile(r.guardian_mobile),
-    // no text row: the parent's number wasn't verified when the student tapped
-    textStatus: r.text_status ?? 'none',
+    // No text row: lunch taps aren't texted ('not-needed'); otherwise the number wasn't verified ('none').
+    textStatus: r.text_status ?? (isTexted(r.result, r.is_late) ? 'none' : 'not-needed'),
     textError: r.last_error,
   }));
 
   return {
     date,
     ...schoolDayInfo(date),
-    lateAfter: lateAfterLabel(),
+    lateAfter: clockLabel(config.schedule.lateAfter),
+    lunchEnd: clockLabel(config.schedule.lunchEnd),
+    dismissal: clockLabel(config.schedule.dismissal),
     students,
     present,
     late,
+    lateFromLunch,
+    leftEarly,
     absent: students - present,
     unregisteredTaps,
     taps,
@@ -96,15 +109,18 @@ function reportStudents(filters, lastDate) {
     .filter((s) => addedOn(s) <= lastDate);
 }
 
-// One row per student for one day: time in, time out and Present / Late / Absent.
+// One row per student for one day: time in, time out, Present / Late / Absent, and notes for
+// coming back late from lunch or leaving early.
 function daily(date, filters = {}) {
   const day = schoolDayInfo(date);
   const byStudent = new Map(db.prepare(`
     SELECT student_id,
            MIN(CASE WHEN result = 'time_in' THEN tapped_at END) AS first_in,
-           MAX(CASE WHEN result = 'time_out' THEN tapped_at END) AS last_out,
-           MAX(is_late) AS late
-    FROM taps WHERE school_date = ? AND result IN ('time_in', 'time_out')
+           MAX(CASE WHEN result IN ('time_out', 'early_out') THEN tapped_at END) AS last_out,
+           MAX(CASE WHEN result = 'time_in' THEN is_late ELSE 0 END) AS late,
+           MAX(CASE WHEN result = 'lunch_in' AND is_late = 1 THEN tapped_at END) AS late_from_lunch,
+           MAX(CASE WHEN result = 'early_out' THEN tapped_at END) AS early_out
+    FROM taps WHERE school_date = ?
     GROUP BY student_id
   `).all(date).map((r) => [r.student_id, r]));
 
@@ -122,6 +138,10 @@ function daily(date, filters = {}) {
       timeIn: time(t?.first_in),
       timeOut: time(t?.last_out),
       status,
+      notes: [
+        t?.late_from_lunch && `Late from lunch (${time(t.late_from_lunch)})`,
+        t?.early_out && `Left early (${time(t.early_out)})`,
+      ].filter(Boolean).join('; '),
     };
   });
 
@@ -129,12 +149,20 @@ function daily(date, filters = {}) {
   return {
     date,
     ...day,
-    summary: { students: rows.length, present: count('Present') + count('Late'), late: count('Late'), absent: count('Absent') },
+    summary: {
+      students: rows.length,
+      present: count('Present') + count('Late'),
+      late: count('Late'),
+      absent: count('Absent'),
+      lateFromLunch: rows.filter((r) => r.notes.includes('Late from lunch')).length,
+      leftEarly: rows.filter((r) => r.notes.includes('Left early')).length,
+    },
     rows,
   };
 }
 
-// One row per student for a month: school days, present, late, absent and attendance %.
+// One row per student for a month: school days, present, late, absent, late from lunch, left early
+// and attendance %.
 // Days after today aren't counted yet.
 function monthly(month, filters = {}) {
   const todayDate = schoolDate();
@@ -150,6 +178,22 @@ function monthly(month, filters = {}) {
   `).all(`${month}-%`)) {
     if (!attended.has(r.student_id)) attended.set(r.student_id, new Map());
     attended.get(r.student_id).set(r.school_date, Boolean(r.late));
+  }
+
+  // Days each student came back late from lunch or left early.
+  const lunchLateDays = new Map();
+  const earlyDays = new Map();
+  for (const r of db.prepare(`
+    SELECT student_id, school_date,
+           MAX(result = 'lunch_in' AND is_late = 1) AS lunch_late, MAX(result = 'early_out') AS early
+    FROM taps WHERE school_date LIKE ? AND result IN ('lunch_in', 'early_out')
+    GROUP BY student_id, school_date
+  `).all(`${month}-%`)) {
+    for (const [map, flag] of [[lunchLateDays, r.lunch_late], [earlyDays, r.early]]) {
+      if (!flag) continue;
+      if (!map.has(r.student_id)) map.set(r.student_id, new Set());
+      map.get(r.student_id).add(r.school_date);
+    }
   }
 
   const lastDate = days.at(-1) ?? `${month}-01`;
@@ -169,6 +213,8 @@ function monthly(month, filters = {}) {
       present: presentDays.length,
       late: lateDays.length,
       absent: counted.length - presentDays.length,
+      lateFromLunch: counted.filter((d) => lunchLateDays.get(s.id)?.has(d)).length,
+      leftEarly: counted.filter((d) => earlyDays.get(s.id)?.has(d)).length,
       percent: counted.length ? Math.round((presentDays.length / counted.length) * 100) : null,
     };
   });

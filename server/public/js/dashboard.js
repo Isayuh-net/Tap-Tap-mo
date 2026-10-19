@@ -11,6 +11,7 @@ const TEXT_STATUS = {
   sending: ['waiting', 'Sending', ''],
   failed: ['error', 'Failed', ''],
   none: ['waiting', 'No text', 'Number not verified'],
+  'not-needed': ['waiting', 'No text', 'Lunch taps are not texted'],
 };
 
 function cell(tr, content) {
@@ -50,7 +51,11 @@ async function loadAttendance() {
   $('present').textContent = number(data.present);
   $('present-note').textContent = `of ${number(data.students)} students`;
   $('late').textContent = number(data.late);
-  $('late-note').textContent = `arrived after ${data.lateAfter}`;
+  const lateExtras = [
+    data.lateFromLunch && `${data.lateFromLunch} late back from lunch`,
+    data.leftEarly && `${data.leftEarly} left early`,
+  ].filter(Boolean);
+  $('late-note').textContent = `arrived after ${data.lateAfter}${lateExtras.length ? ` | ${lateExtras.join(' | ')}` : ''}`;
   $('absent').textContent = number(data.absent);
 
   const notices = [];
@@ -65,7 +70,7 @@ async function loadAttendance() {
     cell(tr, t.name);
     cell(tr, t.classLabel);
     cell(tr, t.type);
-    cell(tr, t.isLate ? badge('late', 'Late') : 'No');
+    cell(tr, t.isLate ? badge('late', 'Late') : t.type === 'Early out' ? badge('late', 'Early') : 'No');
     cell(tr, t.parentMobile ?? 'None');
     const [kind, label, note] = TEXT_STATUS[t.textStatus] ?? ['waiting', t.textStatus, ''];
     const td = cell(tr, badge(kind, label));

@@ -59,17 +59,19 @@ async function load() {
     if (mode === 'daily') {
       $('title').textContent = `Daily attendance: ${prettyDate(report.date)} (${classText})`;
       const s = report.summary;
+      const extra = [s.lateFromLunch && `${s.lateFromLunch} late from lunch`, s.leftEarly && `${s.leftEarly} left early`].filter(Boolean);
       $('summary').textContent = report.schoolDay
-        ? `${s.students} students: ${s.present} present (${s.late} late), ${s.absent} absent.`
+        ? `${s.students} students: ${s.present} present (${s.late} late), ${s.absent} absent.${extra.length ? ` ${extra.join(', ')}.` : ''}`
         : `No classes on this day${report.holiday ? ` (${report.holiday})` : ' (weekend)'}. Taps are still listed.`;
-      setTable(['Student', 'Class', 'Time in', 'Time out', 'Status'],
-        report.rows.map((r) => [r.name, r.classLabel, r.timeIn, r.timeOut, badge(r.status)]));
+      setTable(['Student', 'Class', 'Time in', 'Time out', 'Status', 'Notes'],
+        report.rows.map((r) => [r.name, r.classLabel, r.timeIn, r.timeOut, badge(r.status), r.notes]));
     } else {
       $('title').textContent = `Monthly attendance: ${prettyMonth(report.month)} (${classText})`;
       const holidayText = report.holidays.length ? ` Holidays: ${report.holidays.map((h) => `${h.date.slice(8)} ${h.name}`).join(', ')}.` : '';
       $('summary').textContent = `${report.schoolDays} school days so far.${holidayText} Days before a student was added aren't counted.`;
-      setTable(['Student', 'Class', 'School days', 'Present', 'Late', 'Absent', 'Attendance'],
-        report.rows.map((r) => [r.name, r.classLabel, r.schoolDays, r.present, r.late, r.absent, r.percent === null ? '' : `${r.percent}%`]));
+      setTable(['Student', 'Class', 'School days', 'Present', 'Late', 'Absent', 'Late from lunch', 'Left early', 'Attendance'],
+        report.rows.map((r) => [r.name, r.classLabel, r.schoolDays, r.present, r.late, r.absent, r.lateFromLunch, r.leftEarly,
+          r.percent === null ? '' : `${r.percent}%`]));
     }
     if (!report.rows.length) $('summary').textContent += ' No students match.';
   } catch (err) {

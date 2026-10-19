@@ -14,7 +14,10 @@ const MAX_TAPS_PER_UPLOAD = 500;
 
 const RESULT_LABELS = {
   time_in: 'TIME IN',
+  lunch_out: 'LUNCH OUT',
+  lunch_in: 'BACK FROM LUNCH',
   time_out: 'TIME OUT',
+  early_out: 'EARLY OUT',
   cooldown: 'ALREADY TAPPED',
   unregistered: 'NOT REGISTERED',
   inactive: 'DEACTIVATED',

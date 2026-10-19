@@ -8,7 +8,7 @@ function schoolDate(date = new Date()) {
   return date.toLocaleDateString('en-CA', { timeZone });
 }
 
-// 'HH:MM:SS' in 24-hour time, for comparing with LATE_AFTER
+// 'HH:MM:SS' in 24-hour time, for comparing with the schedule in config.js
 function schoolTime(date = new Date()) {
   return date.toLocaleTimeString('en-GB', { timeZone, hourCycle: 'h23' });
 }
@@ -24,6 +24,12 @@ function displayTime(date) {
 // 'Oct 8'
 function displayDate(date) {
   return date.toLocaleDateString('en-US', { timeZone, month: 'short', day: 'numeric' });
+}
+
+// "13:00:00" -> "1:00 PM", for showing schedule times like LUNCH_END
+function clockLabel(hhmmss) {
+  const [h, m] = hhmmss.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 // The school's UTC offset. The Philippines is UTC+8 all year (no daylight saving time).
@@ -55,4 +61,4 @@ function datesOfMonth(month) {
   return Array.from({ length: days }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`);
 }
 
-module.exports = { schoolDate, schoolTime, displayTime, displayDate, isDateString, dayRangeUtc, isWeekday, datesOfMonth };
+module.exports = { schoolDate, schoolTime, displayTime, displayDate, clockLabel, isDateString, dayRangeUtc, isWeekday, datesOfMonth };

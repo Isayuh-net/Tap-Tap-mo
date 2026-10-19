@@ -46,6 +46,7 @@ router.get('/daily', (req, res) => {
     { header: 'Time in', value: (r) => r.timeIn },
     { header: 'Time out', value: (r) => r.timeOut },
     { header: 'Status', value: (r) => r.status },
+    { header: 'Notes', value: (r) => r.notes },
   ], report.rows));
 });
 
@@ -61,6 +62,8 @@ router.get('/monthly', (req, res) => {
     { header: 'Present', value: (r) => r.present },
     { header: 'Late', value: (r) => r.late },
     { header: 'Absent', value: (r) => r.absent },
+    { header: 'Late from lunch', value: (r) => r.lateFromLunch },
+    { header: 'Left early', value: (r) => r.leftEarly },
     { header: 'Attendance %', value: (r) => r.percent },
   ], report.rows));
 });

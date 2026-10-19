@@ -36,8 +36,11 @@ CREATE TABLE IF NOT EXISTS taps (
   tapped_at     TEXT NOT NULL,                 -- when the card was tapped (from the gate)
   received_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), -- when the server got it
   school_date   TEXT NOT NULL,
-  result        TEXT NOT NULL CHECK (result IN ('time_in', 'time_out', 'cooldown', 'unregistered', 'inactive')),
-  is_late       INTEGER NOT NULL DEFAULT 0
+  -- time_in, lunch_out, lunch_in, time_out, early_out = the student came or went;
+  -- cooldown, unregistered, inactive = the tap didn't count
+  result        TEXT NOT NULL CHECK (result IN ('time_in', 'lunch_out', 'lunch_in', 'time_out', 'early_out',
+                                             'cooldown', 'unregistered', 'inactive')),
+  is_late       INTEGER NOT NULL DEFAULT 0      -- late in the morning (time_in) or back late from lunch (lunch_in)
 );
 CREATE INDEX IF NOT EXISTS idx_taps_student_date ON taps (student_id, school_date);
 CREATE INDEX IF NOT EXISTS idx_taps_date ON taps (school_date);
@@ -45,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_taps_date ON taps (school_date);
 -- Every text the system sends, with its delivery status. (US-10, US-11, US-12)
 CREATE TABLE IF NOT EXISTS sms_messages (
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  kind                TEXT NOT NULL CHECK (kind IN ('time_in', 'time_out', 'verification', 'absent')),
+  kind                TEXT NOT NULL CHECK (kind IN ('time_in', 'time_out', 'lunch_late', 'early_out', 'verification', 'absent')),
   tap_id              INTEGER REFERENCES taps(id),
   student_id          INTEGER REFERENCES students(id),
   to_mobile           TEXT NOT NULL,

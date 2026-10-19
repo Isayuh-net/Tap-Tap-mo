@@ -47,7 +47,7 @@ Tap-Tap-mo/
 │   │   │   ├── holidays.js     No-class days
 │   │   │   └── backups.js      Latest backup, back up now
 │   │   ├── services/           The actual logic
-│   │   │   ├── attendance.js   Time in/out toggle, cooldown, late detection
+│   │   │   ├── attendance.js   What a tap means: time in, lunch, late, early out, time out
 │   │   │   ├── smsQueue.js     Background sending and retries
 │   │   │   ├── messages.js     Text templates (one SMS credit each)
 │   │   │   ├── studentImport.js  Reading and checking CSV student lists
@@ -169,12 +169,28 @@ Restart the gate app (or wait 5 minutes) so it downloads new names for offline m
 |---|---|
 | Tap a registered card | Green "TIME IN" screen; the text appears in the server terminal |
 | Tap it again within 30 seconds | "ALREADY TAPPED", no text |
-| Tap it again after 30 seconds | "TIME OUT", and a "left school" text |
+| Tap it again after 30 seconds | Before 12 PM: amber "EARLY OUT" and a "left school EARLY" text. 12–1 PM: "LUNCH OUT", no text. From 4 PM: "TIME OUT" and a "left school" text |
 | Tap an unregistered card | Red "Card not registered" screen showing the card number |
 | Stop the server, then tap | Orange "OFFLINE: TAP SAVED" with the student's name |
 | Start the server again | Within 5 seconds the saved taps upload and their texts go out |
 | Register a number ending in `0000` | The text is marked failed (invalid number) |
 | Set `MOCK_SMS_FAIL_RATE=1`, restart the server, tap | The text stays queued and retries; set it back to `0` and it sends |
+
+## The school day
+
+Set in `server/.env` (restart the server after changing them):
+
+| Time | Setting | What happens |
+|---|---|---|
+| 8:00 AM | `LATE_AFTER` | The first tap of the day after this is **late** (texted as "arrived LATE") |
+| 12:00–1:00 PM | `LUNCH_START`, `LUNCH_END` | Tapping out is **lunch out** and tapping back in is **back from lunch**. Neither is texted |
+| after 1:00 PM | `LUNCH_END` | Coming back from lunch is **late from lunch** (texted) |
+| before 4:00 PM | `DISMISSAL_TIME` | Tapping out outside lunch is an **early out** (texted as "left school EARLY") |
+| from 4:00 PM | `DISMISSAL_TIME` | Tapping out is **time out** (texted as "left school") |
+
+A student who left early and comes back taps in again (texted, never late). On weekends and holidays
+nothing is late or early. Two taps within 30 seconds count once. The dashboard and reports show late
+from lunch and left early separately from morning lateness.
 
 ## Daily use
 

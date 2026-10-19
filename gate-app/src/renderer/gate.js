@@ -58,18 +58,29 @@ function render(reply, uid) {
     return beep(880);
   }
 
+  // Came in or went out: green, or amber when late or leaving early.
+  const MOVEMENT_LABELS = {
+    time_in: reply.isLate ? 'TIME IN (LATE)' : 'TIME IN',
+    lunch_out: 'LUNCH OUT',
+    lunch_in: reply.isLate ? 'BACK FROM LUNCH (LATE)' : 'BACK FROM LUNCH',
+    time_out: 'TIME OUT',
+    early_out: 'EARLY OUT',
+  };
+  if (MOVEMENT_LABELS[reply.result]) {
+    let note = reply.smsQueued ? 'Parent will be notified by SMS' : '';
+    if (reply.result === 'lunch_out') note = `Enjoy your lunch. Be back by ${reply.backBy}.`;
+    show({
+      state: reply.isLate || reply.result === 'early_out' ? 'warn' : 'ok',
+      label: MOVEMENT_LABELS[reply.result],
+      name: reply.name,
+      strand: reply.gradeSection,
+      detail: now(),
+      note,
+    });
+    return beep(880);
+  }
+
   switch (reply.result) {
-    case 'time_in':
-    case 'time_out':
-      show({
-        state: 'ok',
-        label: reply.result === 'time_in' ? (reply.isLate ? 'TIME IN (LATE)' : 'TIME IN') : 'TIME OUT',
-        name: reply.name,
-        strand: reply.gradeSection,
-        detail: now(),
-        note: 'Parent will be notified by SMS',
-      });
-      return beep(880);
     case 'cooldown':
       show({
         state: 'ok',

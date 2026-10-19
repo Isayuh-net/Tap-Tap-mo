@@ -7,7 +7,14 @@ const { classLabel } = require('../utils/classLabel');
 const { schoolDate, dayRangeUtc } = require('../utils/time');
 const { httpError } = require('../utils/httpError');
 
-const KIND_LABELS = { time_in: 'Time in', time_out: 'Time out', verification: 'Verification code', absent: 'Absent' };
+const KIND_LABELS = {
+  time_in: 'Time in',
+  time_out: 'Time out',
+  lunch_late: 'Late from lunch',
+  early_out: 'Left early',
+  verification: 'Verification code',
+  absent: 'Absent',
+};
 const STATUS_FILTERS = {
   attention: ['failed', 'queued', 'sending'], // what staff should look at
   failed: ['failed'],

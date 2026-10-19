@@ -1,13 +1,18 @@
 // Turns a card tap into an attendance record. (US-01, US-02, US-04, US-06, US-07)
 //
+// The school day (times in config.js / .env):
+//   8:00 AM  LATE_AFTER       arriving after this is late
+//  12:00 PM  LUNCH_START      tapping out from here until LUNCH_END is lunch (no text)
+//   1:00 PM  LUNCH_END        coming back after this is late from lunch (texted)
+//   4:00 PM  DISMISSAL_TIME   time out starts; tapping out earlier (outside lunch) is an early out (texted)
+// On weekends and holidays nothing is late or early: taps simply go in and out.
+//
 // recordTap({ clientTapId, uid, gateId, tappedAt }):
 //  1. Returns the saved result if this clientTapId was already received (the gate re-sent it).
 //  2. Finds the active card and its student -> 'unregistered' or 'inactive' if not usable.
 //  3. Cooldown: a tap within COOLDOWN_SECONDS of the student's previous tap -> 'cooldown'.
-//  4. Toggle: first tap of the school day, or a tap after a time out -> 'time_in'; otherwise 'time_out'.
-//  5. Marks the first time in of a school day as late if it is after LATE_AFTER (never on weekends
-//     or holidays, so nobody gets a "LATE" text for coming in on a Saturday).
-//  6. Saves the tap and, if the parent's number is verified, queues the text in sms_messages,
+//  4. decideTap() works out what the tap means from the student's previous tap and the time.
+//  5. Saves the tap and, if the parent's number is verified, queues the text in sms_messages,
 //     both in one transaction, so a tap is never saved without its text.
 //
 // It uses tappedAt from the gate, not the server's clock, so taps uploaded after an outage keep
@@ -16,10 +21,34 @@
 const db = require('../db');
 const config = require('../config');
 const messages = require('./messages');
-const { schoolDate, schoolTime } = require('../utils/time');
+const { schoolDate, schoolTime, clockLabel } = require('../utils/time');
 const { normalizeUid } = require('../utils/normalize');
 const { schoolDayInfo } = require('./schoolDays');
 const { classLabel } = require('../utils/classLabel');
+
+// Results that mean the student came in or went out (the others: cooldown, unregistered, inactive).
+const MOVEMENTS = ['time_in', 'lunch_out', 'lunch_in', 'time_out', 'early_out'];
+const IN_SCHOOL_AFTER = ['time_in', 'lunch_in']; // after these, the student is inside
+
+// What a tap means. previousResult: the student's last movement today (or null), time: 'HH:MM:SS'.
+// Returns { result, isLate, text }: text is the kind of text for the parent, or null for none.
+function decideTap(previousResult, time, schoolDay) {
+  const s = config.schedule;
+  if (!IN_SCHOOL_AFTER.includes(previousResult)) {
+    // Coming in.
+    if (previousResult === 'lunch_out') {
+      const late = schoolDay && time > s.lunchEnd;
+      return { result: 'lunch_in', isLate: late, text: late ? 'lunch_late' : null };
+    }
+    // First tap of the day (late after 8:00), or coming back after leaving earlier (never late).
+    const late = !previousResult && schoolDay && time > s.lateAfter;
+    return { result: 'time_in', isLate: late, text: 'time_in' };
+  }
+  // Going out.
+  if (!schoolDay || time >= s.dismissal) return { result: 'time_out', isLate: false, text: 'time_out' };
+  if (time >= s.lunchStart && time < s.lunchEnd) return { result: 'lunch_out', isLate: false, text: null };
+  return { result: 'early_out', isLate: false, text: 'early_out' };
+}
 
 const findTap = db.prepare('SELECT * FROM taps WHERE client_tap_id = ?');
 
@@ -32,7 +61,7 @@ const findCard = db.prepare(`
 const findPreviousTap = db.prepare(`
   SELECT * FROM taps
   WHERE student_id = ? AND school_date = ? AND tapped_at < ?
-    AND result IN ('time_in', 'time_out')
+    AND result IN (${MOVEMENTS.map(() => '?').join(', ')})
   ORDER BY tapped_at DESC
   LIMIT 1
 `);
@@ -58,6 +87,7 @@ function toReply({ clientTapId, result, isLate }, student, smsQueued) {
     name: student ? student.full_name : null,
     gradeSection: student ? classLabel(student) : null,
     smsQueued,
+    backBy: result === 'lunch_out' ? clockLabel(config.schedule.lunchEnd) : null, // "Be back by 1:00 PM"
   };
 }
 
@@ -87,6 +117,7 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
     result: null,
     isLate: 0,
   };
+  let textKind = null;
 
   const student = findCard.get(cardUid);
   if (!student) {
@@ -96,14 +127,14 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
     tap.result = 'inactive';
   } else {
     tap.studentId = student.id;
-    const previous = findPreviousTap.get(student.id, tap.schoolDate, tap.tappedAt);
+    const previous = findPreviousTap.get(student.id, tap.schoolDate, tap.tappedAt, ...MOVEMENTS);
     if (previous && date - new Date(previous.tapped_at) < config.cooldownMs) {
       tap.result = 'cooldown';
-    } else if (!previous || previous.result === 'time_out') {
-      tap.result = 'time_in';
-      tap.isLate = !previous && schoolDayInfo(tap.schoolDate).schoolDay && schoolTime(date) > config.lateAfter ? 1 : 0;
     } else {
-      tap.result = 'time_out';
+      const decision = decideTap(previous?.result ?? null, schoolTime(date), schoolDayInfo(tap.schoolDate).schoolDay);
+      tap.result = decision.result;
+      tap.isLate = decision.isLate ? 1 : 0;
+      textKind = decision.text;
     }
   }
 
@@ -111,16 +142,13 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
 
   // Queue the parent's text. Only verified numbers get attendance texts (US-05).
   let smsQueued = false;
-  const isAttendance = tap.result === 'time_in' || tap.result === 'time_out';
-  if (isAttendance && student.guardian_mobile && student.mobile_verified_at) {
-    const body = tap.result === 'time_in'
-      ? messages.timeIn(student.full_name, classLabel(student), date, tap.isLate)
-      : messages.timeOut(student.full_name, classLabel(student), date);
-    insertSms.run({ kind: tap.result, tapId, studentId: student.id, toMobile: student.guardian_mobile, body });
+  if (textKind && student.guardian_mobile && student.mobile_verified_at) {
+    const body = messages.forTap(textKind, student.full_name, classLabel(student), date, tap.isLate);
+    insertSms.run({ kind: textKind, tapId, studentId: student.id, toMobile: student.guardian_mobile, body });
     smsQueued = true;
   }
 
   return toReply(tap, student, smsQueued);
 });
 
-module.exports = { recordTap };
+module.exports = { recordTap, decideTap, MOVEMENTS };

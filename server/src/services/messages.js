@@ -24,10 +24,8 @@ function firstThatFits(...versions) {
   return check(versions.find(fitsOneCredit) ?? versions[versions.length - 1]);
 }
 
-// "BCNHS: Stephanie Polonio (Grade 12 - STEM A) arrived at school at 7:12 AM on Oct 8. Automated message, do not reply."
-function timeIn(name, classLabel, date, isLate) {
-  const late = isLate ? 'LATE ' : '';
-  const event = `arrived ${late}at school at ${displayTime(date)} on ${displayDate(date)}.`;
+// One attendance text: "BCNHS: <name> (<class>) <event> Automated message, do not reply."
+function attendanceText(name, classLabel, event) {
   return firstThatFits(
     `${sender}: ${name} (${classLabel}) ${event}${FOOTER}`,
     `${sender}: ${name} (${classLabel}) ${event}`,
@@ -35,18 +33,39 @@ function timeIn(name, classLabel, date, isLate) {
   );
 }
 
-// "BCNHS: Stephanie Polonio (Grade 12 - STEM A) left school at 4:35 PM on Oct 7. Automated message, do not reply."
+const at = (date) => `at ${displayTime(date)} on ${displayDate(date)}.`;
+
+// "BCNHS: Stephanie Polonio (Grade 12 - STEM A) arrived at school at 7:12 AM on Oct 8. Automated message, do not reply."
+function timeIn(name, classLabel, date, isLate) {
+  return attendanceText(name, classLabel, `arrived ${isLate ? 'LATE ' : ''}at school ${at(date)}`);
+}
+
+// "... left school at 4:35 PM on Oct 7. ..."
 function timeOut(name, classLabel, date) {
-  const event = `left school at ${displayTime(date)} on ${displayDate(date)}.`;
-  return firstThatFits(
-    `${sender}: ${name} (${classLabel}) ${event}${FOOTER}`,
-    `${sender}: ${name} (${classLabel}) ${event}`,
-    `${sender}: ${name} ${event}`,
-  );
+  return attendanceText(name, classLabel, `left school ${at(date)}`);
+}
+
+// "... came back LATE from lunch at 1:15 PM on Oct 7. ..."
+function lunchLate(name, classLabel, date) {
+  return attendanceText(name, classLabel, `came back LATE from lunch ${at(date)}`);
+}
+
+// "... left school EARLY at 10:15 AM on Oct 7. ..."
+function earlyOut(name, classLabel, date) {
+  return attendanceText(name, classLabel, `left school EARLY ${at(date)}`);
+}
+
+// The text for a tap, by the kind decided in attendance.js
+function forTap(kind, name, classLabel, date, isLate) {
+  if (kind === 'time_in') return timeIn(name, classLabel, date, isLate);
+  if (kind === 'time_out') return timeOut(name, classLabel, date);
+  if (kind === 'lunch_late') return lunchLate(name, classLabel, date);
+  if (kind === 'early_out') return earlyOut(name, classLabel, date);
+  throw new Error(`No text for "${kind}"`);
 }
 
 function verificationCode(code) {
   return check(`${sender}: Your Tap-Tap Mo verification code is ${code}. Give it only to your child's adviser or the school staff.`);
 }
 
-module.exports = { timeIn, timeOut, verificationCode, fitsOneCredit };
+module.exports = { forTap, timeIn, timeOut, lunchLate, earlyOut, verificationCode, fitsOneCredit };

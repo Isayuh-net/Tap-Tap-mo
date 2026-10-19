@@ -11,6 +11,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 #screen.waiting { background: #2b2b2b; }
 #screen.ok      { background: #1e8a3c; }
 #screen.offline { background: #1e8a3c; }
+#screen.warn    { background: #b86e00; } /* late, or leaving early */
 #screen.error   { background: #b3261e; }
 
 #banner { display: none; padding: 12px; font-weight: bold; font-size: 1.6rem; background: #f0a030; color: #222; }
