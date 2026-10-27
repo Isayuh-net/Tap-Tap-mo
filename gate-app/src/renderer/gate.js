@@ -7,7 +7,7 @@ const RESET_AFTER_MS = 2500;
 let gateName = '';
 let resetTimer;
 
-// Keep the hidden input focused so the reader's typing always lands in it.
+// Keep the input focused so the reader's typing (and a typed LRN) always lands in it.
 setInterval(() => scan.focus(), 500);
 
 setInterval(() => {
@@ -27,7 +27,7 @@ function show({ state, banner = '', label = '', name = '', strand = '', detail =
 }
 
 function showWaiting() {
-  show({ state: 'waiting', name: 'Tap your card', detail: gateName, note: 'No card? Type your 12-digit LRN, then press Enter.' });
+  show({ state: 'waiting', name: 'Tap your card', detail: gateName }); // the LRN box below explains typing
 }
 
 function beep(frequency) {
@@ -105,29 +105,19 @@ function render(reply, uid) {
 
 const isLrn = (text) => /^\d{12}$/.test(String(text).replace(/\s+/g, ''));
 
-// A student typing their LRN by hand is much slower than the card reader (which types the whole
-// number in a split second), so show what is being typed once it has been on screen a moment.
-let typingTimer;
+// A half-typed LRN left in the box is cleared after 20 seconds. Esc clears it right away.
 let idleTimer;
 scan.addEventListener('input', () => {
-  clearTimeout(typingTimer);
   clearTimeout(idleTimer);
-  typingTimer = setTimeout(() => {
-    if (!scan.value || screen.className !== 'waiting') return;
-    field('detail').textContent = `LRN: ${scan.value}`;
-    field('note').textContent = 'Press Enter when done, or Esc to clear.';
-  }, 250);
-  idleTimer = setTimeout(() => { scan.value = ''; showWaiting(); }, 20000); // forgotten half-typed number
+  idleTimer = setTimeout(() => { scan.value = ''; }, 20000);
 });
 
 scan.addEventListener('keydown', async (event) => {
   if (event.key === 'Escape') {
     scan.value = '';
-    showWaiting();
     return;
   }
   if (event.key !== 'Enter') return;
-  clearTimeout(typingTimer);
   clearTimeout(idleTimer);
   const uid = scan.value.trim();
   scan.value = '';

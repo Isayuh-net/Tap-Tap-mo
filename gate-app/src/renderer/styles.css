@@ -26,5 +26,17 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 #detail { font-size: 2rem; opacity: 0.9; }
 #note   { font-size: 1.5rem; opacity: 0.8; }
 
-#scan { position: absolute; top: 0; left: 0; opacity: 0; pointer-events: none; } /* top/left: no scrollbar */
 html, body { overflow: hidden; }
+
+/* The box the card reader types into, and where students without their ID type their LRN */
+#lrn-entry { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-bottom: 48px; }
+#lrn-entry label { font-size: 1.4rem; opacity: 0.85; }
+#scan {
+  width: 440px; max-width: 80vw; padding: 10px 14px;
+  font: 2rem ui-monospace, monospace; letter-spacing: 0.1em; text-align: center;
+  color: #fff; caret-color: #fff; background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.6); border-radius: 10px; outline: none;
+}
+#scan::placeholder { color: rgba(255, 255, 255, 0.45); }
+/* On result screens the box is invisible but keeps the cursor, so the next card still reads */
+#screen:not(.waiting) #lrn-entry { opacity: 0; }

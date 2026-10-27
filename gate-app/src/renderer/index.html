@@ -18,10 +18,14 @@
       <div id="detail"></div>
       <div id="note"></div>
     </div>
-  </div>
 
-  <!-- The USB reader "types" the card number here, then presses Enter -->
-  <input id="scan" autocomplete="off" autofocus>
+    <!-- The USB reader "types" the card number into this box and presses Enter.
+         A student without their ID card types their LRN into the same box. -->
+    <div id="lrn-entry">
+      <label for="scan">No ID card? Type your 12-digit LRN, then press Enter</label>
+      <input id="scan" autocomplete="off" inputmode="numeric" placeholder="LRN" autofocus>
+    </div>
+  </div>
 
   <script src="gate.js"></script>
 </body>

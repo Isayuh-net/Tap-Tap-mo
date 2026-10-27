@@ -193,8 +193,9 @@ A student who left early and comes back taps in again (texted, never late). On w
 nothing is late or early. Two taps within 30 seconds count once. The dashboard and reports show late
 from lunch and left early separately from morning lateness.
 
-**No card? Use the LRN.** A student without their card types their 12-digit LRN on the gate PC's
-keyboard (the screen shows the digits as they're typed; Esc clears) and presses Enter. It counts like a
+**No card? Use the LRN.** A student without their card types their 12-digit LRN into the box at the
+bottom of the gate screen ("No ID card? Type your 12-digit LRN"), using the gate PC's keyboard, and
+presses Enter (Esc clears). The card reader types into the same box, so cards work as before. It counts like a
 tap and texts the parent as usual. The gate shows "Entered by LRN. Please bring your card next time", and
 the dashboard and daily report mark it **LRN** / "Typed LRN (no card)" so staff can check it was really
 that student. The card reader is checked first, so cards whose numbers happen to be 12 digits still work.
