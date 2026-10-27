@@ -9,9 +9,10 @@ const { parseArgs } = require('node:util');
 const db = require('../src/db');
 const { normalizeUid, normalizeMobile } = require('../src/utils/normalize');
 const { classLabel } = require('../src/utils/classLabel');
+const { checkLrn } = require('../src/services/students');
 const { STRANDS, canonicalStrand } = require('../src/utils/strands');
 
-const USAGE = 'Usage: npm run add-student -- --uid 0004567890 --name "Juan Dela Cruz" --grade 12 --strand STEM --section A --mobile 09171234567';
+const USAGE = 'Usage: npm run add-student -- --uid 0004567890 --name "Juan Dela Cruz" --grade 12 --strand STEM --section A --mobile 09171234567 --lrn 123456789012';
 
 function fail(message) {
   console.error(message);
@@ -29,6 +30,7 @@ try {
       section: { type: 'string', default: 'A' },
       guardian: { type: 'string' },
       mobile: { type: 'string' },
+      lrn: { type: 'string' },
     },
   }));
 } catch (err) {
@@ -49,14 +51,19 @@ if (grade !== 11 && grade !== 12) fail('--grade must be 11 or 12');
 if (!strand) fail(`Unknown strand "${values.strand}". Use one of: ${STRANDS.join(', ')}`);
 if (values.mobile && !mobile) fail(`Not a valid PH mobile number: ${values.mobile}`);
 
+const { lrn, problem: lrnProblem } = checkLrn(values.lrn);
+if (lrnProblem) fail(`Please ${lrnProblem}.`);
+const lrnOwner = lrn && db.prepare('SELECT full_name FROM students WHERE lrn = ?').get(lrn);
+if (lrnOwner) fail(`LRN ${lrn} already belongs to ${lrnOwner.full_name}.`);
+
 const existing = db.prepare('SELECT student_id FROM cards WHERE uid = ?').get(uid);
 if (existing) fail(`Card ${uid} is already registered to student #${existing.student_id}`);
 
 const addStudent = db.transaction(() => {
   const { lastInsertRowid: studentId } = db.prepare(`
-    INSERT INTO students (full_name, grade_level, strand, section, guardian_name, guardian_mobile, mobile_verified_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(name, grade, strand, section, values.guardian ?? null, mobile, mobile ? new Date().toISOString() : null);
+    INSERT INTO students (lrn, full_name, grade_level, strand, section, guardian_name, guardian_mobile, mobile_verified_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(lrn, name, grade, strand, section, values.guardian ?? null, mobile, mobile ? new Date().toISOString() : null);
   db.prepare('INSERT INTO cards (uid, student_id) VALUES (?, ?)').run(uid, studentId);
   return studentId;
 });

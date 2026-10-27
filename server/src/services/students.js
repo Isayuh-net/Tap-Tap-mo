@@ -56,11 +56,32 @@ function checkFields(body, { requireMobile = true } = {}) {
   return { fields, problems };
 }
 
-// Same check for the registration form, as one 400 error listing every problem.
+// LRNs are 12 digits; it can be left blank. Students without their card type it at the gate.
+// Excel turns long numbers into "1.23457E+11" unless the column is Text.
+function checkLrn(value) {
+  const lrn = String(value ?? '').replace(/[\s'-]/g, '');
+  if (!lrn) return { lrn: null };
+  if (/e\+/i.test(lrn)) {
+    return { lrn: null, problem: `format the LRN column as Text in Excel, then save as CSV again (it shows as "${lrn}")` };
+  }
+  if (!/^\d{12}$/.test(lrn)) return { lrn: null, problem: `enter the 12-digit LRN, or leave it blank ("${lrn}" is not 12 digits)` };
+  return { lrn };
+}
+
+// Stops two students from having the same LRN (exceptId: the student being edited).
+function checkLrnFree(lrn, exceptId = 0) {
+  if (!lrn) return;
+  const other = db.prepare('SELECT full_name FROM students WHERE lrn = ? AND id != ?').get(lrn, exceptId);
+  if (other) throw httpError(409, `LRN ${lrn} already belongs to ${other.full_name}.`);
+}
+
+// Same checks for the registration form (including the LRN), as one 400 error listing every problem.
 function cleanFields(body) {
   const { fields, problems } = checkFields(body);
+  const { lrn, problem } = checkLrn(body.lrn);
+  if (problem) problems.push(problem);
   if (problems.length) throw httpError(400, `Please ${problems.join('; ')}.`);
-  return fields;
+  return { ...fields, lrn };
 }
 
 // Active students, optionally filtered: { gradeLevel, strand, section, q (part of the name) }.
@@ -112,11 +133,12 @@ const create = db.transaction((body) => {
   const f = cleanFields(body);
   const owner = findCardOwner.get(uid);
   if (owner) throw httpError(409, `This card is already registered to ${owner.full_name}.`);
+  checkLrnFree(f.lrn);
 
   const { lastInsertRowid: id } = db.prepare(`
-    INSERT INTO students (full_name, grade_level, strand, section, guardian_name, guardian_mobile)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(f.fullName, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile);
+    INSERT INTO students (lrn, full_name, grade_level, strand, section, guardian_name, guardian_mobile)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(f.lrn, f.fullName, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile);
   db.prepare('INSERT INTO cards (uid, student_id) VALUES (?, ?)').run(uid, id);
   return toJson(findStudent.get(id));
 });
@@ -126,13 +148,14 @@ const update = db.transaction((id, body) => {
   const student = findStudent.get(id);
   if (!student) throw httpError(404, 'Student not found.');
   const f = cleanFields(body);
+  checkLrnFree(f.lrn, id);
   const mobileChanged = f.guardianMobile !== student.guardian_mobile;
   db.prepare(`
     UPDATE students
-    SET full_name = ?, grade_level = ?, strand = ?, section = ?, guardian_name = ?, guardian_mobile = ?,
+    SET lrn = ?, full_name = ?, grade_level = ?, strand = ?, section = ?, guardian_name = ?, guardian_mobile = ?,
         mobile_verified_at = CASE WHEN ? THEN NULL ELSE mobile_verified_at END
     WHERE id = ?
-  `).run(f.fullName, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile, mobileChanged ? 1 : 0, id);
+  `).run(f.lrn, f.fullName, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile, mobileChanged ? 1 : 0, id);
   return toJson(findStudent.get(id));
 });
 
@@ -176,4 +199,4 @@ const removeUnusedCard = db.transaction((uid) => {
   return { removed: uid };
 });
 
-module.exports = { checkFields, list, classes, findByCard, create, update, changeMobile, assignCard, removeUnusedCard };
+module.exports = { checkFields, checkLrn, list, classes, findByCard, create, update, changeMobile, assignCard, removeUnusedCard };

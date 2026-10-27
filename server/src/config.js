@@ -29,6 +29,8 @@ module.exports = {
     dismissal: hhmmss(process.env.DISMISSAL_TIME || '16:00'),   // time out starts; leaving before is early out
   },
   cooldownMs: (Number(process.env.COOLDOWN_SECONDS) || 30) * 1000,
+  // Students without their card can type their 12-digit LRN at the gate. Set to false to turn it off.
+  allowLrnEntry: process.env.ALLOW_LRN_ENTRY !== 'false',
   gateKeys: parseGateKeys(process.env.GATE_KEYS),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-secret',
   // Page the server loads every minute to see if the internet is up (a tiny page made for this).

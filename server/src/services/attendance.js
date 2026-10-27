@@ -10,6 +10,8 @@
 // recordTap({ clientTapId, uid, gateId, tappedAt }):
 //  1. Returns the saved result if this clientTapId was already received (the gate re-sent it).
 //  2. Finds the active card and its student -> 'unregistered' or 'inactive' if not usable.
+//     A student without their card can type their 12-digit LRN at the gate instead: when no card
+//     matches, a 12-digit number is looked up as an LRN, and the tap is saved with method 'lrn'.
 //  3. Cooldown: a tap within COOLDOWN_SECONDS of the student's previous tap -> 'cooldown'.
 //  4. decideTap() works out what the tap means from the student's previous tap and the time.
 //  5. Saves the tap and, if the parent's number is verified, queues the text in sms_messages,
@@ -67,10 +69,12 @@ const findPreviousTap = db.prepare(`
 `);
 
 const findStudent = db.prepare('SELECT * FROM students WHERE id = ?');
+const findStudentByLrn = db.prepare('SELECT * FROM students WHERE lrn = ?');
+const LRN = /^\d{12}$/;
 
 const insertTap = db.prepare(`
-  INSERT INTO taps (client_tap_id, gate_id, card_uid, student_id, tapped_at, school_date, result, is_late)
-  VALUES (@clientTapId, @gateId, @uid, @studentId, @tappedAt, @schoolDate, @result, @isLate)
+  INSERT INTO taps (client_tap_id, gate_id, card_uid, method, student_id, tapped_at, school_date, result, is_late)
+  VALUES (@clientTapId, @gateId, @uid, @method, @studentId, @tappedAt, @schoolDate, @result, @isLate)
 `);
 
 const insertSms = db.prepare(`
@@ -79,10 +83,11 @@ const insertSms = db.prepare(`
 `);
 
 // What the gate needs to show for a saved tap.
-function toReply({ clientTapId, result, isLate }, student, smsQueued) {
+function toReply({ clientTapId, result, isLate, method }, student, smsQueued) {
   return {
     clientTapId,
     result,
+    method, // 'card' or 'lrn'
     isLate: Boolean(isLate),
     name: student ? student.full_name : null,
     gradeSection: student ? classLabel(student) : null,
@@ -101,7 +106,7 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
   const saved = findTap.get(clientTapId);
   if (saved) {
     const student = saved.student_id ? findStudent.get(saved.student_id) : null;
-    const reply = { clientTapId, result: saved.result, isLate: saved.is_late };
+    const reply = { clientTapId, result: saved.result, isLate: saved.is_late, method: saved.method };
     return toReply(reply, student, false);
   }
 
@@ -111,6 +116,7 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
     clientTapId,
     gateId,
     uid: cardUid,
+    method: 'card',
     studentId: null,
     tappedAt: date.toISOString(),
     schoolDate: schoolDate(date),
@@ -119,7 +125,12 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
   };
   let textKind = null;
 
-  const student = findCard.get(cardUid);
+  let student = findCard.get(cardUid);
+  if (!student && config.allowLrnEntry && LRN.test(cardUid)) {
+    tap.method = 'lrn'; // no card has this number, so it was typed as an LRN
+    const byLrn = findStudentByLrn.get(cardUid);
+    if (byLrn) student = { ...byLrn, card_status: 'active' }; // works even if their card was lost
+  }
   if (!student) {
     tap.result = 'unregistered';
   } else if (student.card_status !== 'active' || !student.active) {

@@ -3,7 +3,7 @@
 const $ = (id) => document.getElementById(id);
 const message = $('message');
 const cardStatus = $('card-status');
-const FIELDS = ['fullName', 'gradeLevel', 'strand', 'section', 'guardianName', 'guardianMobile'];
+const FIELDS = ['fullName', 'lrn', 'gradeLevel', 'strand', 'section', 'guardianName', 'guardianMobile'];
 
 let studentId = null; // set once the student is saved
 let lastCheckedUid = '';
@@ -46,8 +46,14 @@ async function checkCard() {
       showMessage(message, 'error', `This card was deactivated (${found.cardStatus}). Use a different card.`);
       $('send').disabled = true;
     } else if (s.mobileVerified) {
-      showMessage(message, 'error', `This card is already registered to ${s.fullName} (${s.classLabel}).`);
-      $('send').disabled = true;
+      // Already registered: open their details for editing (for example, to add their LRN).
+      studentId = s.id;
+      fillForm(s);
+      $('uid').disabled = true;
+      $('send').textContent = 'Save changes';
+      showMessage(message, 'info',
+        `This card belongs to ${s.fullName} (${s.classLabel}). You can update their details. `
+        + "Changing the parent's number will need a new verification code.");
     } else {
       // Saved earlier but never verified: continue where it stopped.
       studentId = s.id;
@@ -73,6 +79,11 @@ $('form').addEventListener('submit', async (event) => {
       : await api('/students', { method: 'POST', body: { ...body, uid: $('uid').value } });
     studentId = student.id;
     $('uid').disabled = true; // the card is linked now
+    if (student.mobileVerified) {
+      // Edited a verified student without changing the number: nothing to verify.
+      showMessage(message, 'ok', `Saved changes to ${student.fullName}.`);
+      return;
+    }
     $('send').textContent = 'Save and send a new code';
 
     const sent = await api('/verification/send', { method: 'POST', body: { studentId } });

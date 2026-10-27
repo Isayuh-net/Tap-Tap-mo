@@ -11,7 +11,7 @@ const db = require('../db');
 const { parseCsv } = require('../utils/csv');
 const { classLabel } = require('../utils/classLabel');
 const { httpError } = require('../utils/httpError');
-const { checkFields } = require('./students');
+const { checkFields, checkLrn } = require('./students');
 
 const MAX_ROWS = 3000;
 const HEADER_SEARCH_ROWS = 15; // the header may be below a title like "SCHOOL FORM 1"
@@ -102,15 +102,6 @@ function composeName(get) {
   if (parts.length === 2 && /^(jr|sr).?$|^(ii|iii|iv|v)$/i.test(parts[1])) return `${parts[0]} ${parts[1]}`;
   if (parts.length === 2) return `${parts[1]} ${parts[0]}`; // "Last, First Middle"
   return get('fullName');
-}
-
-// LRNs are 12 digits. Excel turns long numbers into "1.23457E+11" unless the column is Text.
-function checkLrn(value) {
-  const lrn = String(value ?? '').replace(/[\s']/g, '');
-  if (!lrn) return { lrn: null };
-  if (/e\+/i.test(lrn)) return { lrn: null, problem: `LRN shows as "${lrn}": format the LRN column as Text in Excel, then save as CSV again` };
-  if (!/^\d{12}$/.test(lrn)) return { lrn: null, problem: `LRN "${lrn}" should be 12 digits` };
-  return { lrn };
 }
 
 const lrnExists = db.prepare('SELECT 1 FROM students WHERE lrn = ?');

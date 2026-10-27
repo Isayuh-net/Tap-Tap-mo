@@ -69,7 +69,8 @@ async function loadAttendance() {
     cell(tr, t.time);
     cell(tr, t.name);
     cell(tr, t.classLabel);
-    cell(tr, t.type);
+    const type = cell(tr, t.type);
+    if (t.method === 'lrn') type.append(' ', badge('waiting', 'LRN')); // typed at the gate, no card
     cell(tr, t.isLate ? badge('late', 'Late') : t.type === 'Early out' ? badge('late', 'Early') : 'No');
     cell(tr, t.parentMobile ?? 'None');
     const [kind, label, note] = TEXT_STATUS[t.textStatus] ?? ['waiting', t.textStatus, ''];

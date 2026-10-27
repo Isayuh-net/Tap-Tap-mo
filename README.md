@@ -150,9 +150,10 @@ To recognize your school's own column names, add them to `COLUMN_NAMES` in
 **Register a student and card**
 
 Plug a USB reader into the computer with the dashboard, open **Register card**, tap the card, fill in the
-student and parent details, and click **Save and send verification code**. In test mode the code is
+student and parent details (the LRN is optional but lets them use the gate without a card), and click **Save and send verification code**. In test mode the code is
 printed in the server terminal instead of texted; type it in and click **Verify**. Only verified numbers
 get attendance texts. If the parent isn't there, save anyway and tap the same card later to finish.
+Tapping a card that is already registered opens that student for editing, for example to add their LRN.
 
 Shortcut for test data: `add-student` registers a card and marks the number verified in one step.
 Find the card's number by tapping it while Notepad is open: the reader types it.
@@ -191,6 +192,14 @@ Set in `server/.env` (restart the server after changing them):
 A student who left early and comes back taps in again (texted, never late). On weekends and holidays
 nothing is late or early. Two taps within 30 seconds count once. The dashboard and reports show late
 from lunch and left early separately from morning lateness.
+
+**No card? Use the LRN.** A student without their card types their 12-digit LRN on the gate PC's
+keyboard (the screen shows the digits as they're typed; Esc clears) and presses Enter. It counts like a
+tap and texts the parent as usual. The gate shows "Entered by LRN. Please bring your card next time", and
+the dashboard and daily report mark it **LRN** / "Typed LRN (no card)" so staff can check it was really
+that student. The card reader is checked first, so cards whose numbers happen to be 12 digits still work.
+To turn LRN entry off, set `ALLOW_LRN_ENTRY=false` in `server/.env`. LRNs come from the import, the
+Register card page, or `add-student --lrn`.
 
 ## Daily use
 

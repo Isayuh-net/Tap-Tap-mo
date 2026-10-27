@@ -27,7 +27,7 @@ function show({ state, banner = '', label = '', name = '', strand = '', detail =
 }
 
 function showWaiting() {
-  show({ state: 'waiting', name: 'Tap your card', detail: gateName });
+  show({ state: 'waiting', name: 'Tap your card', detail: gateName, note: 'No card? Type your 12-digit LRN, then press Enter.' });
 }
 
 function beep(frequency) {
@@ -53,7 +53,7 @@ function render(reply, uid) {
       name: student ? student.name : 'Tap saved',
       strand: student ? student.gradeSection : '',
       detail: now(),
-      note: 'Text will be sent when back online',
+      note: `Text will be sent when back online${isLrn(uid) ? '. Please bring your card next time.' : ''}`,
     });
     return beep(880);
   }
@@ -69,6 +69,7 @@ function render(reply, uid) {
   if (MOVEMENT_LABELS[reply.result]) {
     let note = reply.smsQueued ? 'Parent will be notified by SMS' : '';
     if (reply.result === 'lunch_out') note = `Enjoy your lunch. Be back by ${reply.backBy}.`;
+    if (reply.method === 'lrn') note = `Entered by LRN. Please bring your card next time.${note ? ` ${note}.` : ''}`;
     show({
       state: reply.isLate || reply.result === 'early_out' ? 'warn' : 'ok',
       label: MOVEMENT_LABELS[reply.result],
@@ -94,16 +95,40 @@ function render(reply, uid) {
       show({
         state: 'error',
         label: 'NOT RECOGNIZED',
-        name: reply.result === 'inactive' ? 'Card deactivated' : 'Card not registered',
-        detail: `Card ${uid}`, // lets the guard or staff look the card up
+        name: reply.method === 'lrn' ? 'LRN not found' : reply.result === 'inactive' ? 'Card deactivated' : 'Card not registered',
+        detail: `${reply.method === 'lrn' ? 'LRN' : 'Card'} ${uid}`, // lets the guard or staff look it up
         note: 'Please see the guard on duty',
       });
       return beep(300);
   }
 }
 
+const isLrn = (text) => /^\d{12}$/.test(String(text).replace(/\s+/g, ''));
+
+// A student typing their LRN by hand is much slower than the card reader (which types the whole
+// number in a split second), so show what is being typed once it has been on screen a moment.
+let typingTimer;
+let idleTimer;
+scan.addEventListener('input', () => {
+  clearTimeout(typingTimer);
+  clearTimeout(idleTimer);
+  typingTimer = setTimeout(() => {
+    if (!scan.value || screen.className !== 'waiting') return;
+    field('detail').textContent = `LRN: ${scan.value}`;
+    field('note').textContent = 'Press Enter when done, or Esc to clear.';
+  }, 250);
+  idleTimer = setTimeout(() => { scan.value = ''; showWaiting(); }, 20000); // forgotten half-typed number
+});
+
 scan.addEventListener('keydown', async (event) => {
+  if (event.key === 'Escape') {
+    scan.value = '';
+    showWaiting();
+    return;
+  }
   if (event.key !== 'Enter') return;
+  clearTimeout(typingTimer);
+  clearTimeout(idleTimer);
   const uid = scan.value.trim();
   scan.value = '';
   if (!uid) return;

@@ -58,8 +58,8 @@ function uploadNow() {
 
 async function refreshRoster() {
   try {
-    const { cards } = await request('/api/gate/roster');
-    roster.replace(cards);
+    const { cards, lrns } = await request('/api/gate/roster');
+    roster.replace(cards, lrns);
   } catch (err) {
     console.warn(`Roster not refreshed: ${err.message}`);
   }

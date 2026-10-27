@@ -1,6 +1,7 @@
 // API for the Electron gate apps. (US-06, US-07, US-14)
 const express = require('express');
 const db = require('../db');
+const config = require('../config');
 const gateAuth = require('../middleware/gateAuth');
 const { recordTap } = require('../services/attendance');
 const smsQueue = require('../services/smsQueue');
@@ -28,10 +29,11 @@ const RESULT_LABELS = {
 function logTap(gateId, tap, reply) {
   const date = new Date(tap.tappedAt);
   const time = Number.isNaN(date.getTime()) ? '' : displayTime(date);
-  const who = reply.name ? `${reply.name}, ${reply.gradeSection}` : `card ${tap.uid}`;
+  const who = reply.name ? `${reply.name}, ${reply.gradeSection}` : `${reply.method === 'lrn' ? 'LRN' : 'card'} ${tap.uid}`;
+  const lrn = reply.method === 'lrn' && reply.name ? ' [typed LRN]' : '';
   const late = reply.isLate ? ' (LATE)' : '';
   const sms = reply.smsQueued ? ' - text queued' : '';
-  console.log(`[${gateId}] ${time.padStart(8)}  ${RESULT_LABELS[reply.result].padEnd(14)}  ${who}${late}${sms}`);
+  console.log(`[${gateId}] ${time.padStart(8)}  ${RESULT_LABELS[reply.result].padEnd(14)}  ${who}${late}${lrn}${sms}`);
 }
 
 // Upload taps. The gate saves every tap locally before sending it, and resends anything
@@ -64,8 +66,8 @@ router.post('/taps', (req, res) => {
 });
 
 // Active cards and student names, cached by the gate so it can still show
-// names when the server cannot be reached.
-// Reply: { cards: { [uid]: { name, gradeSection } } }
+// names when the server cannot be reached. LRNs are included for students who type theirs.
+// Reply: { cards: { [uid]: { name, gradeSection } }, lrns: { [lrn]: { name, gradeSection } } }
 router.get('/roster', (req, res) => {
   const rows = db.prepare(`
     SELECT c.uid, s.full_name, s.grade_level, s.strand, s.section
@@ -76,7 +78,13 @@ router.get('/roster', (req, res) => {
   for (const r of rows) {
     cards[r.uid] = { name: r.full_name, gradeSection: classLabel(r) };
   }
-  res.json({ cards });
+  const lrns = {};
+  if (config.allowLrnEntry) {
+    for (const r of db.prepare('SELECT lrn, full_name, grade_level, strand, section FROM students WHERE active = 1 AND lrn IS NOT NULL').all()) {
+      lrns[r.lrn] = { name: r.full_name, gradeSection: classLabel(r) };
+    }
+  }
+  res.json({ cards, lrns });
 });
 
 module.exports = router;

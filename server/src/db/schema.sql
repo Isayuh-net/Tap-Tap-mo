@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS taps (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   client_tap_id TEXT NOT NULL UNIQUE,          -- made by the gate app; stops duplicates when it re-uploads
   gate_id       TEXT NOT NULL,
-  card_uid      TEXT NOT NULL,
+  card_uid      TEXT NOT NULL,                 -- the card number, or the LRN when typed in
+  method        TEXT NOT NULL DEFAULT 'card',  -- 'card' (tapped) or 'lrn' (typed at the gate, no card)
   student_id    INTEGER REFERENCES students(id),
   tapped_at     TEXT NOT NULL,                 -- when the card was tapped (from the gate)
   received_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), -- when the server got it

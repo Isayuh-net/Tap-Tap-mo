@@ -49,4 +49,9 @@ function rebuildIfOutdated(table, newValue) {
 rebuildIfOutdated('taps', "'lunch_out'");
 rebuildIfOutdated('sms_messages', "'lunch_late'");
 
+const tapColumns = db.prepare('PRAGMA table_info(taps)').all().map((c) => c.name);
+if (!tapColumns.includes('method')) {
+  db.exec("ALTER TABLE taps ADD COLUMN method TEXT NOT NULL DEFAULT 'card'"); // older taps were all cards
+}
+
 module.exports = db;

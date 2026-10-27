@@ -23,7 +23,12 @@
             <p id="card-status" class="hint">Click here first if the number doesn't appear.</p>
           </div>
 
-          <label>Student full name <input id="fullName" maxlength="100" autocomplete="off"></label>
+          <div class="row two">
+            <label>Student full name <input id="fullName" maxlength="100" autocomplete="off"></label>
+            <label>LRN <span class="hint">(12 digits, optional)</span>
+              <input id="lrn" inputmode="numeric" maxlength="14" placeholder="e.g. 123456789012" autocomplete="off">
+            </label>
+          </div>
           <div class="row">
             <label>Grade
               <select id="gradeLevel">

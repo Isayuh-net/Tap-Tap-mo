@@ -62,7 +62,7 @@ function today(filters = {}) {
   ).get(date).n;
 
   const taps = db.prepare(`
-    SELECT t.tapped_at, t.result, t.is_late, t.gate_id, s.id AS student_id, s.full_name, s.grade_level,
+    SELECT t.tapped_at, t.result, t.is_late, t.gate_id, t.method, s.id AS student_id, s.full_name, s.grade_level,
            s.strand, s.section, s.guardian_mobile, s.mobile_verified_at, m.status AS text_status, m.last_error
     FROM taps t
     JOIN students s ON s.id = t.student_id
@@ -78,6 +78,7 @@ function today(filters = {}) {
     type: TYPE_LABELS[r.result],
     isLate: Boolean(r.is_late),
     gate: r.gate_id,
+    method: r.method, // 'card', or 'lrn' when typed at the gate without a card
     parentMobile: maskMobile(r.guardian_mobile),
     // No text row: lunch taps aren't texted ('not-needed'); otherwise the number wasn't verified ('none').
     textStatus: r.text_status ?? (isTexted(r.result, r.is_late) ? 'none' : 'not-needed'),
@@ -119,7 +120,8 @@ function daily(date, filters = {}) {
            MAX(CASE WHEN result IN ('time_out', 'early_out') THEN tapped_at END) AS last_out,
            MAX(CASE WHEN result = 'time_in' THEN is_late ELSE 0 END) AS late,
            MAX(CASE WHEN result = 'lunch_in' AND is_late = 1 THEN tapped_at END) AS late_from_lunch,
-           MAX(CASE WHEN result = 'early_out' THEN tapped_at END) AS early_out
+           MAX(CASE WHEN result = 'early_out' THEN tapped_at END) AS early_out,
+           MAX(CASE WHEN method = 'lrn' AND result IN ('time_in', 'lunch_out', 'lunch_in', 'time_out', 'early_out') THEN 1 ELSE 0 END) AS used_lrn
     FROM taps WHERE school_date = ?
     GROUP BY student_id
   `).all(date).map((r) => [r.student_id, r]));
@@ -141,6 +143,7 @@ function daily(date, filters = {}) {
       notes: [
         t?.late_from_lunch && `Late from lunch (${time(t.late_from_lunch)})`,
         t?.early_out && `Left early (${time(t.early_out)})`,
+        t?.used_lrn && 'Typed LRN (no card)',
       ].filter(Boolean).join('; '),
     };
   });
