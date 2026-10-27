@@ -8,7 +8,7 @@
 const db = require('../db');
 const config = require('../config');
 const { classLabel } = require('../utils/classLabel');
-const { schoolDate, displayTime, clockLabel, datesOfMonth } = require('../utils/time');
+const { schoolDate, schoolTime, displayTime, clockLabel, datesOfMonth, weekDates, daysBefore } = require('../utils/time');
 const { schoolDayInfo } = require('./schoolDays');
 const { MOVEMENTS } = require('./attendance');
 
@@ -222,4 +222,96 @@ function monthly(month, filters = {}) {
   return { month, schoolDays: days.length, holidays, rows };
 }
 
-module.exports = { today, daily, monthly };
+// Per-day counts for a list of dates, for the students matching the filters.
+// A day "counts" when it is a school day that has started: past school days, and today once
+// classes have begun (so Monday at 7 AM doesn't show 0% attendance).
+function dayStats(dates, filters) {
+  const f = studentFilter(filters);
+  const students = db.prepare(`SELECT s.created_at FROM students s WHERE ${f.sql}`).all(...f.params);
+  const byDate = new Map(db.prepare(`
+    SELECT t.school_date,
+           COUNT(DISTINCT CASE WHEN t.result = 'time_in' THEN t.student_id END) AS present,
+           COUNT(DISTINCT CASE WHEN t.result = 'time_in' AND t.is_late = 1 THEN t.student_id END) AS late,
+           COUNT(DISTINCT CASE WHEN t.result = 'lunch_in' AND t.is_late = 1 THEN t.student_id END) AS late_from_lunch,
+           COUNT(DISTINCT CASE WHEN t.result = 'early_out' THEN t.student_id END) AS left_early
+    FROM taps t JOIN students s ON s.id = t.student_id
+    WHERE t.school_date BETWEEN ? AND ? AND ${f.sql}
+    GROUP BY t.school_date
+  `).all(dates[0], dates.at(-1), ...f.params).map((r) => [r.school_date, r]));
+
+  const todayDate = schoolDate();
+  const classesStarted = schoolTime() > config.schedule.lateAfter;
+  return dates.map((date) => {
+    const { schoolDay, holiday } = schoolDayInfo(date);
+    const counts = date < todayDate || (date === todayDate && classesStarted);
+    const enrolled = students.filter((st) => addedOn(st) <= date).length;
+    const t = byDate.get(date) ?? { present: 0, late: 0, late_from_lunch: 0, left_early: 0 };
+    return {
+      date,
+      weekday: new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
+      schoolDay,
+      holiday,
+      counts: schoolDay && counts && enrolled > 0,
+      future: date > todayDate,
+      enrolled,
+      present: t.present,
+      absent: Math.max(enrolled - t.present, 0),
+      late: t.late,
+      lateFromLunch: t.late_from_lunch,
+      leftEarly: t.left_early,
+      attendanceRate: enrolled ? Math.round((t.present / enrolled) * 1000) / 10 : null,
+    };
+  });
+}
+
+// Averages over the days that count: attendance = present / enrolled, tardiness = late arrivals / arrivals.
+function averages(days) {
+  const counted = days.filter((d) => d.counts);
+  const sum = (key) => counted.reduce((total, d) => total + d[key], 0);
+  const pct = (part, whole) => (whole ? Math.round((part / whole) * 1000) / 10 : null);
+  return {
+    schoolDays: counted.length,
+    averageAttendance: pct(sum('present'), sum('enrolled')),
+    tardinessRate: pct(sum('late'), sum('present')),
+    lateArrivals: sum('late'),
+    lateFromLunch: sum('lateFromLunch'),
+    leftEarly: sum('leftEarly'),
+    absences: sum('absent'),
+  };
+}
+
+// The dashboard's weekly summary: Monday to Friday of the week containing `weekOf`, compared with
+// the week before, plus the students most often late. (US-09, US-13)
+function week(weekOf, filters = {}) {
+  const dates = weekDates(weekOf);
+  const days = dayStats(dates, filters);
+  const lastWeek = averages(dayStats(weekDates(daysBefore(dates[0], 7)), filters));
+
+  const f = studentFilter(filters);
+  const counted = days.filter((d) => d.counts).map((d) => d.date);
+  const mostLate = counted.length ? db.prepare(`
+    SELECT s.id, s.full_name, s.grade_level, s.strand, s.section,
+           COUNT(DISTINCT CASE WHEN t.result = 'time_in' AND t.is_late = 1 THEN t.school_date END) AS late,
+           COUNT(DISTINCT CASE WHEN t.result = 'lunch_in' AND t.is_late = 1 THEN t.school_date END) AS late_from_lunch
+    FROM taps t JOIN students s ON s.id = t.student_id
+    WHERE t.school_date IN (${counted.map(() => '?').join(', ')}) AND t.is_late = 1 AND ${f.sql}
+    GROUP BY s.id
+    ORDER BY late + late_from_lunch DESC, s.full_name
+    LIMIT 5
+  `).all(...counted, ...f.params).map((r) => ({
+    name: r.full_name, classLabel: classLabel(r), late: r.late, lateFromLunch: r.late_from_lunch,
+  })) : [];
+
+  return {
+    weekStart: dates[0],
+    weekEnd: dates.at(-1),
+    isThisWeek: weekDates(schoolDate())[0] === dates[0],
+    classesStart: clockLabel(config.schedule.lateAfter),
+    days,
+    summary: averages(days),
+    lastWeek: { averageAttendance: lastWeek.averageAttendance, tardinessRate: lastWeek.tardinessRate },
+    mostLate,
+  };
+}
+
+module.exports = { today, daily, monthly, week };

@@ -167,3 +167,44 @@ a.button.primary { background: #1f5fa8; border-color: #1f5fa8; color: #fff; }
 .tab.active { background: #3b6fb6; color: #fff; }
 .plain-list { padding-left: 18px; line-height: 2; margin: 0; }
 .plain-list button { padding: 2px 8px; font-size: 0.8rem; margin-left: 6px; }
+
+/* Dashboard weekly summary */
+.week { position: relative; --series-1: #2a78d6; --series-2: #eb6834; --baseline: #c3c2b7; --muted: #898781; }
+.week.refreshing { opacity: 0.6; }
+.week-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 6px 0 22px; }
+.stat-label { font-size: 0.85rem; font-weight: 600; color: #52514e; }
+.stat-value { font-size: 1.8rem; font-weight: 600; margin: 2px 0; }
+.stat-delta, .stat-note { font-size: 0.8rem; color: #52514e; white-space: pre-line; }
+.stat-delta.good { color: #006300; }
+.stat-delta.bad { color: #b3261e; }
+.week-charts { display: grid; grid-template-columns: 1fr 1fr 0.9fr; gap: 24px; align-items: start; }
+.chart { margin: 0; }
+.chart figcaption { font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; }
+.columns { display: flex; gap: 2px; }
+.col { flex: 1; display: flex; flex-direction: column; align-items: center; border-radius: 4px; outline-offset: 2px; }
+.col:focus-visible { outline: 2px solid #3b6fb6; }
+.col .plot { height: 140px; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; border-bottom: 1px solid var(--baseline); }
+.col .cap { font-size: 0.8rem; color: #52514e; margin-bottom: 4px; font-variant-numeric: tabular-nums; text-align: center; }
+.col .cap.muted { color: var(--muted); font-size: 0.75rem; }
+.col .bar { width: 24px; max-width: 70%; border-radius: 4px 4px 0 0; transition: filter 0.1s; }
+.columns.attendance .bar { background: var(--series-1); }
+.columns.late .bar { background: var(--series-2); }
+.col:hover .bar, .col:focus .bar { filter: brightness(1.15); }
+.col .x-label { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+.most-late h4 { margin: 0 0 8px; font-size: 0.9rem; }
+.most-late ol { margin: 0; padding-left: 20px; line-height: 1.4; }
+.most-late li { margin-bottom: 8px; }
+.week-table { margin-top: 18px; }
+.week-table summary { cursor: pointer; color: #3b6fb6; font-weight: 600; font-size: 0.9rem; }
+.week-table td { font-variant-numeric: tabular-nums; }
+.chart-tip {
+  position: absolute; transform: translate(-50%, calc(-100% - 8px)); pointer-events: none; z-index: 5;
+  background: #fff; border: 1px solid rgba(11, 11, 11, 0.12); border-radius: 6px; padding: 8px 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12); font-size: 0.8rem; color: #52514e; white-space: nowrap;
+}
+.chart-tip strong { display: block; color: #0b0b0b; font-size: 0.95rem; }
+@media (max-width: 1000px) {
+  .stat-tiles { grid-template-columns: 1fr 1fr; }
+  .week-charts { grid-template-columns: 1fr; }
+}

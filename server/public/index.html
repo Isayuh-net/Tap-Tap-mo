@@ -23,6 +23,13 @@
       </div>
     </div>
 
+    <!-- One filter for the whole page: today's cards, the weekly summary and the tap list -->
+    <div class="filters">
+      <label>Class
+        <select id="class"><option value="">All classes</option></select>
+      </label>
+    </div>
+
     <p id="notice" class="message info"></p>
 
     <div class="cards">
@@ -31,6 +38,71 @@
       <div class="card absent"><div class="card-label">Absent</div><div id="absent" class="card-number">-</div><div class="card-note">no tap yet today</div></div>
       <div class="card texts"><div class="card-label">Texts sent today</div><div id="texts" class="card-number">-</div><div id="texts-note" class="card-note"></div></div>
     </div>
+
+    <section class="panel block week" aria-labelledby="week-title">
+      <div class="page-head">
+        <div>
+          <h3 id="week-title">This week</h3>
+          <p id="week-range" class="hint"></p>
+        </div>
+        <div class="week-nav">
+          <button type="button" id="week-prev">&lsaquo; Previous week</button>
+          <button type="button" id="week-this" hidden>This week</button>
+          <button type="button" id="week-next">Next week &rsaquo;</button>
+        </div>
+      </div>
+
+      <div class="stat-tiles">
+        <div class="stat">
+          <div class="stat-label">Average attendance</div>
+          <div id="avg-attendance" class="stat-value">-</div>
+          <div id="avg-attendance-delta" class="stat-delta"></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Tardiness</div>
+          <div id="tardiness" class="stat-value">-</div>
+          <div id="tardiness-delta" class="stat-delta"></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Late arrivals</div>
+          <div id="late-arrivals" class="stat-value">-</div>
+          <div id="late-arrivals-note" class="stat-note"></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Absences</div>
+          <div id="absences" class="stat-value">-</div>
+          <div class="stat-note">student-days missed</div>
+        </div>
+      </div>
+
+      <div class="week-charts">
+        <figure class="chart">
+          <figcaption>Attendance by day</figcaption>
+          <div id="chart-attendance" class="columns attendance"></div>
+        </figure>
+        <figure class="chart">
+          <figcaption>Late arrivals by day <span class="hint">(morning and from lunch)</span></figcaption>
+          <div id="chart-late" class="columns late"></div>
+        </figure>
+        <div class="most-late">
+          <h4>Most often late</h4>
+          <ol id="most-late"></ol>
+        </div>
+      </div>
+
+      <details class="week-table">
+        <summary>Show the numbers</summary>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Day</th><th>Enrolled</th><th>Present</th><th>Absent</th><th>Attendance</th><th>Late (morning)</th><th>Late from lunch</th><th>Left early</th></tr>
+            </thead>
+            <tbody id="week-rows"></tbody>
+          </table>
+        </div>
+      </details>
+      <div id="chart-tip" class="chart-tip" role="tooltip" hidden></div>
+    </section>
 
     <section id="failed-box" class="panel block attention" hidden>
       <div class="page-head">
@@ -48,7 +120,6 @@
     <section class="panel block">
       <div class="filters">
         <input id="search" type="search" placeholder="Search student...">
-        <select id="class"><option value="">All classes</option></select>
       </div>
       <div class="table-wrap">
         <table>
@@ -65,5 +136,6 @@
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/dashboard.js"></script>
+  <script src="js/week-summary.js"></script>
 </body>
 </html>

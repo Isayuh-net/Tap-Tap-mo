@@ -196,6 +196,10 @@ from lunch and left early separately from morning lateness.
 
 - **Dashboard**: today's present, late and absent counts, texts sent, internet and SMS credit status,
   the last backup (admins), failed texts, and every tap with its text status. It updates every 15 seconds.
+  Its **This week** summary shows average attendance and tardiness (the share of arrivals that were
+  late), each compared with the week before, plus late arrivals, absences, attendance and lateness by
+  day, and the students most often late. Use the arrows for earlier weeks; the class filter at the top
+  applies to the whole page. Today counts once classes have started.
 - **SMS log** (admin and staff): failed and waiting texts. For a wrong number, click **Change number**,
   verify the new number on **Verify numbers**, then click **Send again**.
 - **Reports**: daily or monthly attendance for one class or all, as a table, a CSV file for Excel, or
