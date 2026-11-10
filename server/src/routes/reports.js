@@ -4,6 +4,7 @@ const express = require('express');
 const requireLogin = require('../middleware/requireLogin');
 const reports = require('../services/attendanceReports');
 const { toCsv } = require('../utils/csvWrite');
+const { buildSf2 } = require('../services/sf2');
 const { schoolDate, isDateString } = require('../utils/time');
 const { httpError } = require('../utils/httpError');
 
@@ -12,7 +13,9 @@ router.use(requireLogin());
 
 const STUDENT_COLUMNS = [
   { header: 'LRN', value: (r) => r.lrn, text: true },
+  { header: 'School ID', value: (r) => r.schoolId, text: true },
   { header: 'Name', value: (r) => r.name },
+  { header: 'Sex', value: (r) => r.sex },
   { header: 'Grade', value: (r) => r.gradeLevel },
   { header: 'Strand', value: (r) => r.strand },
   { header: 'Section', value: (r) => r.section },
@@ -66,6 +69,17 @@ router.get('/monthly', (req, res) => {
     { header: 'Left early', value: (r) => r.leftEarly },
     { header: 'Attendance %', value: (r) => r.percent },
   ], report.rows));
+});
+
+// Monthly attendance as an Excel file in the SF2 layout: one sheet per section, boys then girls.
+// ?month=YYYY-MM (default this month) &gradeLevel=&strand=&section= (default every section)
+router.get('/sf2', async (req, res) => {
+  const month = req.query.month || schoolDate().slice(0, 7);
+  if (!isDateString(`${month}-01`)) throw httpError(400, 'Month must look like 2026-10.');
+  const buffer = await buildSf2(month, classFilter(req.query));
+  res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.set('Content-Disposition', `attachment; filename="${fileName('sf2', month, req.query).replace(/\.csv$/, '.xlsx')}"`);
+  res.send(Buffer.from(buffer));
 });
 
 module.exports = router;

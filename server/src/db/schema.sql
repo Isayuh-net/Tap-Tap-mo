@@ -5,7 +5,9 @@
 CREATE TABLE IF NOT EXISTS students (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   lrn             TEXT UNIQUE,                 -- DepEd Learner Reference Number
+  school_id       TEXT,                        -- the school's own ID number, e.g. "2026-00123" (unique, see db/index.js)
   full_name       TEXT NOT NULL,
+  sex             TEXT,                        -- 'M' or 'F' (SF2 lists boys and girls separately)
   grade_level     INTEGER NOT NULL CHECK (grade_level IN (11, 12)),
   strand          TEXT NOT NULL DEFAULT '',    -- e.g. "STEM", "ABM", "HUMSS", "TVL-ICT"
   section         TEXT NOT NULL,               -- e.g. "A"
@@ -20,6 +22,7 @@ CREATE TABLE IF NOT EXISTS students (
 CREATE TABLE IF NOT EXISTS cards (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   uid            TEXT NOT NULL UNIQUE,         -- number typed by the USB reader
+  card_no        INTEGER,                      -- short number given in order (0001, 0002...) to write on the card
   student_id     INTEGER REFERENCES students(id),
   status         TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'lost', 'returned')),
   issued_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

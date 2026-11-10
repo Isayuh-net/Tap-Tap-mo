@@ -10,9 +10,48 @@
   <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
   <main>
     <h2>Students</h2>
-    <!-- TODO: search and section filter, student list, edit details (GET/PUT /api/students) -->
+    <p class="subtitle">Everyone registered in the system, by section and by sex.</p>
+
+    <div class="stat-tiles">
+      <div class="stat"><div class="stat-label">Total students</div><div id="total" class="stat-value">-</div><div id="sections" class="stat-note"></div></div>
+      <div class="stat"><div class="stat-label">Male</div><div id="male" class="stat-value">-</div></div>
+      <div class="stat"><div class="stat-label">Female</div><div id="female" class="stat-value">-</div></div>
+      <div class="stat"><div class="stat-label">Sex not set</div><div id="not-set" class="stat-value">-</div><div class="stat-note">add it on Register card</div></div>
+    </div>
+
+    <section class="panel block">
+      <h3>Students per section</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Section</th><th>Male</th><th>Female</th><th>Not set</th><th>Total</th><th>Without card</th><th>Number not verified</th></tr></thead>
+          <tbody id="class-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel block">
+      <h3>Student list</h3>
+      <div class="filters">
+        <input id="search" type="search" placeholder="Name, LRN, school ID or card no.">
+        <select id="class"><option value="">All sections</option></select>
+        <select id="sex">
+          <option value="">Male and female</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </div>
+      <p id="count" class="hint"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Card no.</th><th>Name</th><th>Sex</th><th>Section</th><th>LRN</th><th>School ID</th><th>Parent mobile</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="hint">To change a student's details, tap their card on the Register card page (or click Edit).</p>
+    </section>
   </main>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/students.js"></script>
 </body>
 </html>

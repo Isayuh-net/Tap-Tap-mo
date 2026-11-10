@@ -211,3 +211,5 @@ a.button.primary { background: #1f5fa8; border-color: #1f5fa8; color: #fff; }
 
 .row.two { grid-template-columns: 2fr 1fr; }
 @media (max-width: 800px) { .row.two { grid-template-columns: 1fr; } }
+tr.total-row td { font-weight: 600; border-top: 2px solid #ccc; }
+.enrollment { margin: 0; align-self: flex-end; padding-bottom: 10px; color: #52514e; font-size: 0.9rem; }

@@ -1,5 +1,7 @@
 // Student records and their RFID cards. (US-05, US-08)
 // A new student is saved with an UNVERIFIED parent number; verification.js marks it verified.
+// Each student can have an LRN and a school ID number; each card gets a short card number
+// (0001, 0002...) in the order cards are added, for writing on the physical card.
 const db = require('../db');
 const { normalizeUid, normalizeMobile } = require('../utils/normalize');
 const { STRANDS, canonicalStrand } = require('../utils/strands');
@@ -7,19 +9,29 @@ const { classLabel } = require('../utils/classLabel');
 const { httpError } = require('../utils/httpError');
 
 const findStudent = db.prepare('SELECT * FROM students WHERE id = ?');
-const findActiveCard = db.prepare("SELECT uid FROM cards WHERE student_id = ? AND status = 'active'");
+const findActiveCard = db.prepare("SELECT uid, card_no FROM cards WHERE student_id = ? AND status = 'active'");
 const findCardOwner = db.prepare(`
-  SELECT c.uid, c.status AS card_status, s.*
+  SELECT c.uid, c.status AS card_status, c.card_no, s.*
   FROM cards c JOIN students s ON s.id = c.student_id
   WHERE c.uid = ?
 `);
+// The new card gets the next card number in the same statement, so two can't get the same one.
+const insertCard = db.prepare(`
+  INSERT INTO cards (uid, student_id, card_no) VALUES (?, ?, (SELECT COALESCE(MAX(card_no), 0) + 1 FROM cards))
+`);
 
-// What pages get for a student. Rows from list() already include card_uid.
+// 7 -> "0007", the number written on the card
+const cardLabel = (cardNo) => (cardNo ? String(cardNo).padStart(4, '0') : null);
+
+// What pages get for a student. Rows from list() and findCardOwner already include the card.
 function toJson(student) {
+  const card = 'card_uid' in student ? { uid: student.card_uid, card_no: student.card_no } : findActiveCard.get(student.id);
   return {
     id: student.id,
     lrn: student.lrn,
+    schoolId: student.school_id,
     fullName: student.full_name,
+    sex: student.sex, // 'M', 'F' or null
     gradeLevel: student.grade_level,
     strand: student.strand,
     section: student.section,
@@ -27,17 +39,28 @@ function toJson(student) {
     guardianName: student.guardian_name,
     guardianMobile: student.guardian_mobile,
     mobileVerified: Boolean(student.mobile_verified_at),
-    cardUid: 'card_uid' in student ? student.card_uid : findActiveCard.get(student.id)?.uid ?? null,
+    cardUid: card?.uid ?? null,
+    cardNo: cardLabel(card?.card_no),
   };
+}
+
+// "M", "male", "boy", "lalaki" -> "M"; "F", "female", "girl", "babae" -> "F"; anything else -> null
+function normalizeSex(value) {
+  const text = String(value ?? '').trim().toLowerCase();
+  if (['m', 'male', 'boy', 'lalaki'].includes(text)) return 'M';
+  if (['f', 'female', 'girl', 'babae'].includes(text)) return 'F';
+  return null;
 }
 
 // Checks and cleans student fields from the registration form or an imported row.
 // Returns { fields, problems }; problems are short phrases like "enter the section".
-// requireMobile: false lets an import row through without a number (it just gets no texts yet).
-function checkFields(body, { requireMobile = true } = {}) {
+// For imports, requireMobile and requireSex are false: the row is still added, with a warning.
+function checkFields(body, { requireMobile = true, requireSex = true } = {}) {
   const rawMobile = String(body.guardianMobile ?? '').trim();
+  const rawSex = String(body.sex ?? '').trim();
   const fields = {
     fullName: String(body.fullName ?? '').trim().replace(/\s+/g, ' '),
+    sex: normalizeSex(rawSex),
     gradeLevel: Number(body.gradeLevel),
     strand: canonicalStrand(body.strand),
     section: String(body.section ?? '').trim(),
@@ -46,6 +69,8 @@ function checkFields(body, { requireMobile = true } = {}) {
   };
   const problems = [];
   if (!fields.fullName || fields.fullName.length > 100) problems.push('enter the student\'s full name');
+  if (rawSex && !fields.sex) problems.push(`choose male or female ("${rawSex}" is not M or F)`);
+  if (!rawSex && requireSex) problems.push('choose male or female');
   if (fields.gradeLevel !== 11 && fields.gradeLevel !== 12) problems.push('grade must be 11 or 12');
   if (!fields.strand) {
     problems.push(`choose a strand: ${STRANDS.join(', ')}${body.strand ? ` ("${body.strand}" is not one)` : ''}`);
@@ -68,43 +93,62 @@ function checkLrn(value) {
   return { lrn };
 }
 
-// Stops two students from having the same LRN (exceptId: the student being edited).
-function checkLrnFree(lrn, exceptId = 0) {
-  if (!lrn) return;
-  const other = db.prepare('SELECT full_name FROM students WHERE lrn = ? AND id != ?').get(lrn, exceptId);
-  if (other) throw httpError(409, `LRN ${lrn} already belongs to ${other.full_name}.`);
+// The school's own ID number, e.g. "2026-00123". Optional: letters, digits and dashes.
+function checkSchoolId(value) {
+  const schoolId = String(value ?? '').trim().replace(/^'/, '');
+  if (!schoolId) return { schoolId: null };
+  if (!/^[A-Za-z0-9-]{1,30}$/.test(schoolId)) {
+    return { schoolId: null, problem: `enter the school ID with letters, numbers and dashes only ("${schoolId}" is not)` };
+  }
+  return { schoolId };
 }
 
-// Same checks for the registration form (including the LRN), as one 400 error listing every problem.
+// Stops two students from having the same LRN or school ID (exceptId: the student being edited).
+function checkIdsFree({ lrn, schoolId }, exceptId = 0) {
+  const lrnOwner = lrn && db.prepare('SELECT full_name FROM students WHERE lrn = ? AND id != ?').get(lrn, exceptId);
+  if (lrnOwner) throw httpError(409, `LRN ${lrn} already belongs to ${lrnOwner.full_name}.`);
+  const idOwner = schoolId && db.prepare('SELECT full_name FROM students WHERE school_id = ? AND id != ?').get(schoolId, exceptId);
+  if (idOwner) throw httpError(409, `School ID ${schoolId} already belongs to ${idOwner.full_name}.`);
+}
+
+// Same checks for the registration form (with LRN and school ID), as one 400 error listing every problem.
 function cleanFields(body) {
   const { fields, problems } = checkFields(body);
-  const { lrn, problem } = checkLrn(body.lrn);
-  if (problem) problems.push(problem);
+  const { lrn, problem: lrnProblem } = checkLrn(body.lrn);
+  const { schoolId, problem: idProblem } = checkSchoolId(body.schoolId);
+  for (const problem of [lrnProblem, idProblem]) if (problem) problems.push(problem);
   if (problems.length) throw httpError(400, `Please ${problems.join('; ')}.`);
-  return { ...fields, lrn };
+  return { ...fields, lrn, schoolId };
 }
 
-// Active students, optionally filtered: { gradeLevel, strand, section, q (part of the name) }.
-function list({ gradeLevel, strand, section, q } = {}) {
+// Active students, optionally filtered: { gradeLevel, strand, section, sex, q }.
+// q matches part of the name, or the LRN, school ID or card number.
+function list({ gradeLevel, strand, section, sex, q } = {}) {
   const where = ['s.active = 1'];
   const params = [];
   if (gradeLevel) { where.push('s.grade_level = ?'); params.push(Number(gradeLevel)); }
   if (strand) { where.push('s.strand = ?'); params.push(strand); }
   if (section) { where.push('s.section = ?'); params.push(section); }
-  if (q) { where.push('s.full_name LIKE ?'); params.push(`%${q}%`); }
+  if (sex) { where.push('s.sex = ?'); params.push(normalizeSex(sex)); }
+  if (q) {
+    where.push("(s.full_name LIKE ? OR s.lrn = ? OR s.school_id = ? OR printf('%04d', c.card_no) = ?)");
+    params.push(`%${q}%`, q, q, q);
+  }
   return db.prepare(`
-    SELECT s.*, c.uid AS card_uid
+    SELECT s.*, c.uid AS card_uid, c.card_no
     FROM students s LEFT JOIN cards c ON c.student_id = s.id AND c.status = 'active'
     WHERE ${where.join(' AND ')}
     ORDER BY s.full_name
   `).all(...params).map(toJson);
 }
 
-// Every class (grade + strand + section) with how many students still need a card or a verified number.
+// Every class (grade + strand + section) with its boys and girls, and how many students still
+// need a card or a verified number.
 function classes() {
   return db.prepare(`
     SELECT s.grade_level, s.strand, s.section, COUNT(*) AS students, COUNT(c.uid) AS with_card,
-           COUNT(s.mobile_verified_at) AS verified
+           COUNT(s.mobile_verified_at) AS verified,
+           SUM(s.sex = 'M') AS male, SUM(s.sex = 'F') AS female
     FROM students s LEFT JOIN cards c ON c.student_id = s.id AND c.status = 'active'
     WHERE s.active = 1
     GROUP BY s.grade_level, s.strand, s.section
@@ -115,6 +159,9 @@ function classes() {
     section: r.section,
     classLabel: classLabel(r),
     students: r.students,
+    male: r.male,
+    female: r.female,
+    sexNotSet: r.students - r.male - r.female,
     withoutCard: r.students - r.with_card,
     unverified: r.students - r.verified,
   }));
@@ -123,7 +170,7 @@ function classes() {
 // Who owns this card? Returns null for a card that was never registered.
 function findByCard(uid) {
   const row = findCardOwner.get(normalizeUid(uid));
-  return row ? { cardStatus: row.card_status, student: toJson(row) } : null;
+  return row ? { cardStatus: row.card_status, student: toJson({ ...row, card_uid: row.uid }) } : null;
 }
 
 // Registers a new student together with their card.
@@ -133,13 +180,13 @@ const create = db.transaction((body) => {
   const f = cleanFields(body);
   const owner = findCardOwner.get(uid);
   if (owner) throw httpError(409, `This card is already registered to ${owner.full_name}.`);
-  checkLrnFree(f.lrn);
+  checkIdsFree(f);
 
   const { lastInsertRowid: id } = db.prepare(`
-    INSERT INTO students (lrn, full_name, grade_level, strand, section, guardian_name, guardian_mobile)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(f.lrn, f.fullName, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile);
-  db.prepare('INSERT INTO cards (uid, student_id) VALUES (?, ?)').run(uid, id);
+    INSERT INTO students (lrn, school_id, full_name, sex, grade_level, strand, section, guardian_name, guardian_mobile)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(f.lrn, f.schoolId, f.fullName, f.sex, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile);
+  insertCard.run(uid, id);
   return toJson(findStudent.get(id));
 });
 
@@ -148,14 +195,16 @@ const update = db.transaction((id, body) => {
   const student = findStudent.get(id);
   if (!student) throw httpError(404, 'Student not found.');
   const f = cleanFields(body);
-  checkLrnFree(f.lrn, id);
+  checkIdsFree(f, id);
   const mobileChanged = f.guardianMobile !== student.guardian_mobile;
   db.prepare(`
     UPDATE students
-    SET lrn = ?, full_name = ?, grade_level = ?, strand = ?, section = ?, guardian_name = ?, guardian_mobile = ?,
+    SET lrn = ?, school_id = ?, full_name = ?, sex = ?, grade_level = ?, strand = ?, section = ?,
+        guardian_name = ?, guardian_mobile = ?,
         mobile_verified_at = CASE WHEN ? THEN NULL ELSE mobile_verified_at END
     WHERE id = ?
-  `).run(f.lrn, f.fullName, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile, mobileChanged ? 1 : 0, id);
+  `).run(f.lrn, f.schoolId, f.fullName, f.sex, f.gradeLevel, f.strand, f.section, f.guardianName, f.guardianMobile,
+    mobileChanged ? 1 : 0, id);
   return toJson(findStudent.get(id));
 });
 
@@ -183,7 +232,7 @@ const assignCard = db.transaction((uid, studentId) => {
   if (owner) throw httpError(409, `This card is already registered to ${owner.full_name}.`);
   const current = findActiveCard.get(studentId);
   if (current) throw httpError(409, `${student.full_name} already has card ${current.uid}.`);
-  db.prepare('INSERT INTO cards (uid, student_id) VALUES (?, ?)').run(uid, studentId);
+  insertCard.run(uid, studentId);
   return toJson(findStudent.get(studentId));
 });
 
@@ -199,4 +248,7 @@ const removeUnusedCard = db.transaction((uid) => {
   return { removed: uid };
 });
 
-module.exports = { checkFields, checkLrn, list, classes, findByCard, create, update, changeMobile, assignCard, removeUnusedCard };
+module.exports = {
+  checkFields, checkLrn, checkSchoolId, normalizeSex, cardLabel, insertCard,
+  list, classes, findByCard, create, update, changeMobile, assignCard, removeUnusedCard,
+};

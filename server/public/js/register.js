@@ -3,13 +3,19 @@
 const $ = (id) => document.getElementById(id);
 const message = $('message');
 const cardStatus = $('card-status');
-const FIELDS = ['fullName', 'lrn', 'gradeLevel', 'strand', 'section', 'guardianName', 'guardianMobile'];
+const FIELDS = ['fullName', 'lrn', 'sex', 'schoolId', 'gradeLevel', 'strand', 'section', 'guardianName', 'guardianMobile'];
 
 let studentId = null; // set once the student is saved
 let lastCheckedUid = '';
 
 api('/students/strands').then(({ strands }) => {
   for (const strand of strands) $('strand').add(new Option(strand, strand));
+  // Opened from the Students page's Edit link: load that card's student.
+  const startUid = new URLSearchParams(location.search).get('uid');
+  if (startUid) {
+    $('uid').value = startUid;
+    checkCard();
+  }
 });
 
 function formValues() {
@@ -18,6 +24,7 @@ function formValues() {
 
 function fillForm(student) {
   for (const id of FIELDS) $(id).value = student[id] ?? '';
+  $('cardNo').value = student.cardNo ?? '';
 }
 
 // The reader types the card number and presses Enter: check the card, then go to the name.
@@ -79,9 +86,10 @@ $('form').addEventListener('submit', async (event) => {
       : await api('/students', { method: 'POST', body: { ...body, uid: $('uid').value } });
     studentId = student.id;
     $('uid').disabled = true; // the card is linked now
+    $('cardNo').value = student.cardNo ?? '';
     if (student.mobileVerified) {
       // Edited a verified student without changing the number: nothing to verify.
-      showMessage(message, 'ok', `Saved changes to ${student.fullName}.`);
+      showMessage(message, 'ok', `Saved changes to ${student.fullName} (card no. ${student.cardNo}).`);
       return;
     }
     $('send').textContent = 'Save and send a new code';
@@ -103,7 +111,8 @@ $('form').addEventListener('submit', async (event) => {
 async function verify() {
   try {
     const { mobile } = await api('/verification/confirm', { method: 'POST', body: { studentId, code: $('code').value } });
-    showMessage(message, 'ok', `Done! ${$('fullName').value} is registered. Attendance texts will go to ${mobile}.`);
+    showMessage(message, 'ok', `Done! ${$('fullName').value} is registered with card no. ${$('cardNo').value}; write it on the card. `
+      + `Attendance texts will go to ${mobile}.`);
     $('details').disabled = true;
     $('verify-step').disabled = true;
     $('next').focus();

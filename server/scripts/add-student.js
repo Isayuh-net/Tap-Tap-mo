@@ -9,10 +9,10 @@ const { parseArgs } = require('node:util');
 const db = require('../src/db');
 const { normalizeUid, normalizeMobile } = require('../src/utils/normalize');
 const { classLabel } = require('../src/utils/classLabel');
-const { checkLrn } = require('../src/services/students');
+const { checkLrn, checkSchoolId, normalizeSex, insertCard, cardLabel } = require('../src/services/students');
 const { STRANDS, canonicalStrand } = require('../src/utils/strands');
 
-const USAGE = 'Usage: npm run add-student -- --uid 0004567890 --name "Juan Dela Cruz" --grade 12 --strand STEM --section A --mobile 09171234567 --lrn 123456789012';
+const USAGE = 'Usage: npm run add-student -- --uid 0004567890 --name "Juan Dela Cruz" --grade 12 --strand STEM --section A --sex M --mobile 09171234567 --lrn 123456789012 --school-id 2026-00123';
 
 function fail(message) {
   console.error(message);
@@ -31,6 +31,8 @@ try {
       guardian: { type: 'string' },
       mobile: { type: 'string' },
       lrn: { type: 'string' },
+      sex: { type: 'string' },
+      'school-id': { type: 'string' },
     },
   }));
 } catch (err) {
@@ -56,19 +58,27 @@ if (lrnProblem) fail(`Please ${lrnProblem}.`);
 const lrnOwner = lrn && db.prepare('SELECT full_name FROM students WHERE lrn = ?').get(lrn);
 if (lrnOwner) fail(`LRN ${lrn} already belongs to ${lrnOwner.full_name}.`);
 
+const sex = normalizeSex(values.sex);
+if (values.sex && !sex) fail(`--sex must be M or F, not "${values.sex}"`);
+const { schoolId, problem: idProblem } = checkSchoolId(values['school-id']);
+if (idProblem) fail(`Please ${idProblem}.`);
+const idOwner = schoolId && db.prepare('SELECT full_name FROM students WHERE school_id = ?').get(schoolId);
+if (idOwner) fail(`School ID ${schoolId} already belongs to ${idOwner.full_name}.`);
+
 const existing = db.prepare('SELECT student_id FROM cards WHERE uid = ?').get(uid);
 if (existing) fail(`Card ${uid} is already registered to student #${existing.student_id}`);
 
 const addStudent = db.transaction(() => {
   const { lastInsertRowid: studentId } = db.prepare(`
-    INSERT INTO students (lrn, full_name, grade_level, strand, section, guardian_name, guardian_mobile, mobile_verified_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(lrn, name, grade, strand, section, values.guardian ?? null, mobile, mobile ? new Date().toISOString() : null);
-  db.prepare('INSERT INTO cards (uid, student_id) VALUES (?, ?)').run(uid, studentId);
+    INSERT INTO students (lrn, school_id, full_name, sex, grade_level, strand, section, guardian_name, guardian_mobile, mobile_verified_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(lrn, schoolId, name, sex, grade, strand, section, values.guardian ?? null, mobile, mobile ? new Date().toISOString() : null);
+  insertCard.run(uid, studentId); // gets the next card number
   return studentId;
 });
 
 const studentId = addStudent();
 const label = classLabel({ grade_level: grade, strand, section });
-console.log(`Added student #${studentId}: ${name}, ${label}, card ${uid}` +
+const cardNo = cardLabel(db.prepare('SELECT card_no FROM cards WHERE uid = ?').get(uid).card_no);
+console.log(`Added student #${studentId}: ${name}, ${label}, card ${uid} (card no. ${cardNo})` +
   (mobile ? `, parent ${mobile} (verified)` : ', no parent number (no texts will be sent)'));

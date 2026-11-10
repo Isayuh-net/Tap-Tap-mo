@@ -54,6 +54,11 @@ async function load() {
   showMessage(message, '', '');
   const classText = $('class').value ? $('class').selectedOptions[0].text : 'All classes';
   $('download').href = `/api/reports/${mode}?${query({ format: 'csv' })}`;
+  // SF2 is monthly: from the daily view it uses the month of the chosen date
+  const sf2 = query();
+  sf2.delete('date');
+  sf2.set('month', mode === 'daily' ? $('date').value.slice(0, 7) : $('month').value);
+  $('download-sf2').href = `/api/reports/sf2?${sf2}`;
   try {
     const report = await api(`/reports/${mode}?${query()}`);
     if (mode === 'daily') {
@@ -63,14 +68,14 @@ async function load() {
       $('summary').textContent = report.schoolDay
         ? `${s.students} students: ${s.present} present (${s.late} late), ${s.absent} absent.${extra.length ? ` ${extra.join(', ')}.` : ''}`
         : `No classes on this day${report.holiday ? ` (${report.holiday})` : ' (weekend)'}. Taps are still listed.`;
-      setTable(['Student', 'Class', 'Time in', 'Time out', 'Status', 'Notes'],
-        report.rows.map((r) => [r.name, r.classLabel, r.timeIn, r.timeOut, badge(r.status), r.notes]));
+      setTable(['Student', 'Sex', 'Class', 'Time in', 'Time out', 'Status', 'Notes'],
+        report.rows.map((r) => [r.name, r.sex ?? '', r.classLabel, r.timeIn, r.timeOut, badge(r.status), r.notes]));
     } else {
       $('title').textContent = `Monthly attendance: ${prettyMonth(report.month)} (${classText})`;
       const holidayText = report.holidays.length ? ` Holidays: ${report.holidays.map((h) => `${h.date.slice(8)} ${h.name}`).join(', ')}.` : '';
       $('summary').textContent = `${report.schoolDays} school days so far.${holidayText} Days before a student was added aren't counted.`;
-      setTable(['Student', 'Class', 'School days', 'Present', 'Late', 'Absent', 'Late from lunch', 'Left early', 'Attendance'],
-        report.rows.map((r) => [r.name, r.classLabel, r.schoolDays, r.present, r.late, r.absent, r.lateFromLunch, r.leftEarly,
+      setTable(['Student', 'Sex', 'Class', 'School days', 'Present', 'Late', 'Absent', 'Late from lunch', 'Left early', 'Attendance'],
+        report.rows.map((r) => [r.name, r.sex ?? '', r.classLabel, r.schoolDays, r.present, r.late, r.absent, r.lateFromLunch, r.leftEarly,
           r.percent === null ? '' : `${r.percent}%`]));
     }
     if (!report.rows.length) $('summary').textContent += ' No students match.';

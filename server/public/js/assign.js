@@ -70,7 +70,7 @@ function render() {
     const cells = [
       i + 1,
       s.fullName,
-      s.cardUid ?? (skipped.has(s.id) ? 'Skipped' : ''),
+      s.cardUid ? `No. ${s.cardNo} (${s.cardUid})` : (skipped.has(s.id) ? 'Skipped' : ''),
       s.guardianMobile ? `${s.guardianMobile}${s.mobileVerified ? ' (verified)' : ''}` : 'None',
     ];
     for (const value of cells) {
@@ -117,7 +117,7 @@ $('uid').addEventListener('keydown', async (event) => {
     const index = nextIndex;
     students[index] = updated;
     undoStack.push({ uid: updated.cardUid, index });
-    showMessage(message, 'ok', `Card ${updated.cardUid} is now ${updated.fullName}'s.`);
+    showMessage(message, 'ok', `Card no. ${updated.cardNo} is now ${updated.fullName}'s. Write ${updated.cardNo} on the card.`);
     beep(880);
     pickNext(index + 1);
     render();

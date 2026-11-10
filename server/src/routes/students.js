@@ -14,10 +14,10 @@ router.get('/strands', (req, res) => res.json({ strands: STRANDS }));  // for th
 // Every class with how many students still need a card. Reply: { classes: [...] }
 router.get('/classes', (req, res) => res.json({ classes: students.classes() }));
 
-// Active students. Filters: ?gradeLevel=11&strand=STEM&section=A&q=part+of+name
+// Active students. Filters: ?gradeLevel=11&strand=STEM&section=A&sex=F&q=name, LRN, school ID or card no.
 router.get('/', (req, res) => {
-  const { gradeLevel, strand, section, q } = req.query;
-  res.json({ students: students.list({ gradeLevel, strand, section, q }) });
+  const { gradeLevel, strand, section, sex, q } = req.query;
+  res.json({ students: students.list({ gradeLevel, strand, section, sex, q }) });
 });
 
 router.get('/:id', todo);                                  // one student, with cards and recent taps

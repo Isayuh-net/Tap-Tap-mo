@@ -49,9 +49,29 @@ function rebuildIfOutdated(table, newValue) {
 rebuildIfOutdated('taps', "'lunch_out'");
 rebuildIfOutdated('sms_messages', "'lunch_late'");
 
-const tapColumns = db.prepare('PRAGMA table_info(taps)').all().map((c) => c.name);
-if (!tapColumns.includes('method')) {
-  db.exec("ALTER TABLE taps ADD COLUMN method TEXT NOT NULL DEFAULT 'card'"); // older taps were all cards
+// Adds a column to an existing table if it isn't there yet.
+function addColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!columns.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+addColumn('taps', 'method', "TEXT NOT NULL DEFAULT 'card'"); // older taps were all cards
+addColumn('students', 'sex', 'TEXT');
+addColumn('students', 'school_id', 'TEXT');
+addColumn('cards', 'card_no', 'INTEGER');
+
+// Unique only when filled in (ALTER TABLE can't add UNIQUE, so these are indexes instead).
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_students_school_id ON students (school_id) WHERE school_id IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_card_no ON cards (card_no) WHERE card_no IS NOT NULL;
+`);
+
+// Cards registered before card numbers existed get the next numbers, in the order they were added.
+const unnumbered = db.prepare('SELECT id FROM cards WHERE card_no IS NULL ORDER BY id').all();
+if (unnumbered.length) {
+  db.transaction(() => {
+    let next = (db.prepare('SELECT MAX(card_no) AS n FROM cards').get().n ?? 0) + 1;
+    for (const { id } of unnumbered) db.prepare('UPDATE cards SET card_no = ? WHERE id = ?').run(next++, id);
+  })();
 }
 
 module.exports = db;

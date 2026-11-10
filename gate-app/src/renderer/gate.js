@@ -39,6 +39,9 @@ function beep(frequency) {
   setTimeout(() => { osc.stop(); ctx.close(); }, 150);
 }
 
+// "ID 2026-00123 | 7:12 AM", or just the time when the student has no school ID
+const withId = (schoolId) => (schoolId ? `ID ${schoolId} | ${now()}` : now());
+
 function now() {
   return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
@@ -52,7 +55,7 @@ function render(reply, uid) {
       banner: 'OFFLINE: TAP SAVED',
       name: student ? student.name : 'Tap saved',
       strand: student ? student.gradeSection : '',
-      detail: now(),
+      detail: withId(student?.schoolId),
       note: `Text will be sent when back online${isLrn(uid) ? '. Please bring your card next time.' : ''}`,
     });
     return beep(880);
@@ -75,7 +78,7 @@ function render(reply, uid) {
       label: MOVEMENT_LABELS[reply.result],
       name: reply.name,
       strand: reply.gradeSection,
-      detail: now(),
+      detail: withId(reply.schoolId),
       note,
     });
     return beep(880);

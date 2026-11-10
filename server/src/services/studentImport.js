@@ -11,7 +11,7 @@ const db = require('../db');
 const { parseCsv } = require('../utils/csv');
 const { classLabel } = require('../utils/classLabel');
 const { httpError } = require('../utils/httpError');
-const { checkFields, checkLrn } = require('./students');
+const { checkFields, checkLrn, checkSchoolId } = require('./students');
 
 const MAX_ROWS = 3000;
 const HEADER_SEARCH_ROWS = 15; // the header may be below a title like "SCHOOL FORM 1"
@@ -19,6 +19,8 @@ const HEADER_SEARCH_ROWS = 15; // the header may be below a title like "SCHOOL F
 // Column names we recognize (compared after normalizeHeader). Add your school's names here.
 const COLUMN_NAMES = {
   lrn: ['lrn', 'learner reference number', 'learners reference number'],
+  schoolId: ['school id', 'school id number', 'school id no', 'student id', 'student id number', 'student number', 'student no', 'id number', 'id no'],
+  sex: ['sex', 'gender', 'm/f', 'sex m/f'],
   lastName: ['last name', 'surname', 'family name'],
   firstName: ['first name', 'given name'],
   middleName: ['middle name', 'middle initial', 'mi'],
@@ -105,13 +107,14 @@ function composeName(get) {
 }
 
 const lrnExists = db.prepare('SELECT 1 FROM students WHERE lrn = ?');
+const schoolIdExists = db.prepare('SELECT 1 FROM students WHERE school_id = ?');
 const studentExists = db.prepare(`
   SELECT 1 FROM students
   WHERE lower(full_name) = lower(?) AND grade_level = ? AND strand = ? AND lower(section) = lower(?) AND active = 1
 `);
 const insertStudent = db.prepare(`
-  INSERT INTO students (lrn, full_name, grade_level, strand, section, guardian_name, guardian_mobile)
-  VALUES (@lrn, @fullName, @gradeLevel, @strand, @section, @guardianName, @guardianMobile)
+  INSERT INTO students (lrn, school_id, full_name, sex, grade_level, strand, section, guardian_name, guardian_mobile)
+  VALUES (@lrn, @schoolId, @fullName, @sex, @gradeLevel, @strand, @section, @guardianName, @guardianMobile)
 `);
 
 function importStudents(csvText, { commit = false } = {}) {
@@ -131,6 +134,7 @@ function importStudents(csvText, { commit = false } = {}) {
   if (dataRows.length > MAX_ROWS) throw httpError(400, `The file has more than ${MAX_ROWS} rows. Split it into smaller files.`);
 
   const seenLrns = new Set();
+  const seenSchoolIds = new Set();
   const seenStudents = new Set();
   const results = [];
 
@@ -138,28 +142,36 @@ function importStudents(csvText, { commit = false } = {}) {
     if (cells.every((c) => !String(c).trim())) return; // blank line
     const get = (field) => (field in header.columns ? String(cells[header.columns[field]] ?? '').trim() : '');
     const { lrn, problem: lrnProblem } = checkLrn(get('lrn'));
+    const { schoolId, problem: idProblem } = checkSchoolId(get('schoolId'));
     const { fields, problems } = checkFields({
       fullName: composeName(get),
+      sex: get('sex'),
       gradeLevel: parseGrade(get('gradeLevel')),
       strand: get('strand'),
       section: get('section'),
       guardianName: get('guardianName'),
       guardianMobile: get('guardianMobile'),
-    }, { requireMobile: false });
-    if (lrnProblem) problems.push(lrnProblem);
+    }, { requireMobile: false, requireSex: false });
+    for (const problem of [lrnProblem, idProblem]) if (problem) problems.push(problem);
 
-    const warnings = get('guardianMobile') ? [] : ['no parent mobile number, so no texts until one is added'];
+    const warnings = [];
+    if (!get('guardianMobile')) warnings.push('no parent mobile number, so no texts until one is added');
+    if (!get('sex')) warnings.push('sex not given, so SF2 lists them under "not specified"');
     const studentKey = [fields.fullName.toLowerCase(), fields.gradeLevel, fields.strand, fields.section.toLowerCase()].join('|');
     let status = 'new';
     if (problems.length) status = 'error';
-    else if ((lrn && (seenLrns.has(lrn) || lrnExists.get(lrn))) || seenStudents.has(studentKey)
+    else if ((lrn && (seenLrns.has(lrn) || lrnExists.get(lrn)))
+      || (schoolId && (seenSchoolIds.has(schoolId) || schoolIdExists.get(schoolId)))
+      || seenStudents.has(studentKey)
       || studentExists.get(fields.fullName, fields.gradeLevel, fields.strand, fields.section)) status = 'duplicate';
     if (lrn) seenLrns.add(lrn);
+    if (schoolId) seenSchoolIds.add(schoolId);
     seenStudents.add(studentKey);
 
     results.push({
       row: header.index + i + 2, // the row number Excel shows
       lrn,
+      schoolId,
       ...fields,
       // what the file says, even when it's wrong, so staff can find the row ("Grade 13 - Robotics B")
       classLabel: classLabel({

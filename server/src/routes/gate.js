@@ -70,18 +70,18 @@ router.post('/taps', (req, res) => {
 // Reply: { cards: { [uid]: { name, gradeSection } }, lrns: { [lrn]: { name, gradeSection } } }
 router.get('/roster', (req, res) => {
   const rows = db.prepare(`
-    SELECT c.uid, s.full_name, s.grade_level, s.strand, s.section
+    SELECT c.uid, s.full_name, s.grade_level, s.strand, s.section, s.school_id
     FROM cards c JOIN students s ON s.id = c.student_id
     WHERE c.status = 'active' AND s.active = 1
   `).all();
   const cards = {};
   for (const r of rows) {
-    cards[r.uid] = { name: r.full_name, gradeSection: classLabel(r) };
+    cards[r.uid] = { name: r.full_name, gradeSection: classLabel(r), schoolId: r.school_id };
   }
   const lrns = {};
   if (config.allowLrnEntry) {
-    for (const r of db.prepare('SELECT lrn, full_name, grade_level, strand, section FROM students WHERE active = 1 AND lrn IS NOT NULL').all()) {
-      lrns[r.lrn] = { name: r.full_name, gradeSection: classLabel(r) };
+    for (const r of db.prepare('SELECT lrn, full_name, grade_level, strand, section, school_id FROM students WHERE active = 1 AND lrn IS NOT NULL').all()) {
+      lrns[r.lrn] = { name: r.full_name, gradeSection: classLabel(r), schoolId: r.school_id };
     }
   }
   res.json({ cards, lrns });

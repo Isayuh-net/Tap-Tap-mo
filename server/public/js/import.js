@@ -6,7 +6,7 @@ let lastResult = null;
 
 const STATUS_TEXT = { new: 'Will be added', imported: 'Added', duplicate: 'Already added', error: 'Has problems' };
 const FIELD_NAMES = {
-  lrn: 'LRN', fullName: 'Name', firstName: 'First name', middleName: 'Middle name', lastName: 'Last name',
+  lrn: 'LRN', schoolId: 'School ID', sex: 'Sex', fullName: 'Name', firstName: 'First name', middleName: 'Middle name', lastName: 'Last name',
   gradeLevel: 'Grade', strand: 'Strand', section: 'Section', guardianName: 'Parent', guardianMobile: 'Mobile',
 };
 
@@ -83,7 +83,7 @@ function renderRows(rows) {
   const shown = onlyProblems ? rows.filter((r) => r.status === 'error' || r.warnings.length) : rows;
   $('rows').replaceChildren(...shown.map((r) => {
     const tr = document.createElement('tr');
-    const cells = [r.row, r.fullName, r.classLabel, r.lrn ?? '', r.guardianName ?? '', r.guardianMobile ?? ''];
+    const cells = [r.row, r.fullName, r.sex ?? '', r.classLabel, r.lrn ?? '', r.schoolId ?? '', r.guardianName ?? '', r.guardianMobile ?? ''];
     for (const value of cells) {
       const td = document.createElement('td');
       td.textContent = value;

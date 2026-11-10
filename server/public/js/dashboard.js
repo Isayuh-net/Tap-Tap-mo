@@ -26,9 +26,24 @@ function badge(kind, text) {
   return Object.assign(document.createElement('span'), { className: `badge ${kind}`, textContent: text });
 }
 
+let classList = [];
+
 async function loadClasses() {
-  const { classes } = await api('/students/classes');
-  for (const c of classes) $('class').add(new Option(c.classLabel, JSON.stringify([c.gradeLevel, c.strand, c.section])));
+  ({ classes: classList } = await api('/students/classes'));
+  for (const c of classList) $('class').add(new Option(c.classLabel, JSON.stringify([c.gradeLevel, c.strand, c.section])));
+  showEnrollment();
+}
+
+// "Enrolled: 1,400 students (712 male, 688 female) in 32 sections", for the class filter's choice.
+function showEnrollment() {
+  const chosen = $('class').value
+    ? classList.filter((c) => JSON.stringify([c.gradeLevel, c.strand, c.section]) === $('class').value)
+    : classList;
+  const sum = (key) => chosen.reduce((total, c) => total + c[key], 0);
+  const where = $('class').value ? '' : ` in ${chosen.length} section${chosen.length === 1 ? '' : 's'}`;
+  const notSet = sum('sexNotSet') ? `, ${sum('sexNotSet')} not set` : '';
+  $('enrollment').textContent = `Enrolled: ${number(sum('students'))} students (${number(sum('male'))} male, `
+    + `${number(sum('female'))} female${notSet})${where}`;
 }
 
 function filters() {
@@ -140,6 +155,7 @@ $('search').addEventListener('input', () => {
   searchTimer = setTimeout(loadAttendance, 300);
 });
 $('class').addEventListener('change', loadAttendance);
+$('class').addEventListener('change', showEnrollment);
 
 loadClasses();
 refresh();

@@ -21,6 +21,7 @@ module.exports = {
   port: Number(process.env.PORT) || 3000,
   dbPath: path.resolve(__dirname, '..', process.env.DB_PATH || 'data/tap-tap-mo.db'),
   timeZone: process.env.SCHOOL_TZ || 'Asia/Manila',
+  schoolName: process.env.SCHOOL_NAME || 'Baguio City National High School - Senior High School', // on SF2 downloads
   // The school day (24-hour times). See services/attendance.js for how taps are read.
   schedule: {
     lateAfter: hhmmss(process.env.LATE_AFTER || '08:00'),       // classes start; arriving after this is late

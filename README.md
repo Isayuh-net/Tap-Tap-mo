@@ -43,7 +43,7 @@ Tap-Tap-mo/
 │   │   │   ├── verification.js Parent mobile number code
 │   │   │   ├── attendance.js   Today's taps and counts (dashboard)
 │   │   │   ├── sms.js          SMS log, failed texts, retry, credits
-│   │   │   ├── reports.js      Daily and monthly reports, CSV export
+│   │   │   ├── reports.js      Daily and monthly reports, CSV and Excel (SF2) export
 │   │   │   ├── holidays.js     No-class days
 │   │   │   └── backups.js      Latest backup, back up now
 │   │   ├── services/           The actual logic
@@ -53,6 +53,7 @@ Tap-Tap-mo/
 │   │   │   ├── studentImport.js  Reading and checking CSV student lists
 │   │   │   ├── verification.js   Parent number codes (one student or a whole class)
 │   │   │   ├── attendanceReports.js  Dashboard counts, daily and monthly reports
+│   │   │   ├── sf2.js          Monthly attendance as an Excel file in the SF2 layout
 │   │   │   ├── schoolDays.js   Weekdays that aren't holidays
 │   │   │   ├── smsLog.js       SMS log, today's counts, retrying texts
 │   │   │   ├── internet.js     Checks every minute whether the internet is up
@@ -136,8 +137,12 @@ to test: type any card number and press Enter. A USB reader does the same thing.
    Excel as **CSV UTF-8**, or fill in the template on that page. You see a preview of every row first,
    with problems (bad grade, unknown strand, invalid number, LRN changed by Excel) and students already
    added. Only the good new rows are imported, so you can fix the file and import it again safely.
+   Include the **Sex** (M or F) and **School ID** columns: sex sorts boys and girls on the SF2 sheet, and
+   the school ID is shown at the gate and in reports.
 2. **Assign cards**: choose a class and tap cards one after another. Each tap goes to the next student
    without a card. Use **Skip** for absent students and **Undo last card** for a wrong tap.
+   Every card gets a short number (0001, 0002, ...) in the order it was assigned. Write it on the card
+   so a lost card can be matched to its student; the Students page searches by it.
 3. **Verify numbers**: choose a class and click **Send codes**. Every unverified parent with a number gets
    a code that works for 3 days. Parents give the code to their child, and the adviser types it in on
    the same page. Texts that fail (usually a wrong number) are shown so staff can fix the number.
@@ -150,7 +155,9 @@ To recognize your school's own column names, add them to `COLUMN_NAMES` in
 **Register a student and card**
 
 Plug a USB reader into the computer with the dashboard, open **Register card**, tap the card, fill in the
-student and parent details (the LRN is optional but lets them use the gate without a card), and click **Save and send verification code**. In test mode the code is
+student and parent details (sex is required; the LRN and school ID are optional, and the LRN lets them
+use the gate without a card), and click **Save and send verification code**. The page shows the card's
+number once it is saved. In test mode the code is
 printed in the server terminal instead of texted; type it in and click **Verify**. Only verified numbers
 get attendance texts. If the parent isn't there, save anyway and tap the same card later to finish.
 Tapping a card that is already registered opens that student for editing, for example to add their LRN.
@@ -159,7 +166,7 @@ Shortcut for test data: `add-student` registers a card and marks the number veri
 Find the card's number by tapping it while Notepad is open: the reader types it.
 
 ```bash
-npm run add-student -- --uid 0004567890 --name "Stephanie Lei Polonio" --grade 12 --strand STEM --section A --mobile 09170005590
+npm run add-student -- --uid 0004567890 --name "Stephanie Lei Polonio" --sex F --grade 12 --strand STEM --section A --mobile 09170005590 --school-id 2026-00123
 ```
 
 Restart the gate app (or wait 5 minutes) so it downloads new names for offline mode.
@@ -209,12 +216,21 @@ Register card page, or `add-student --lrn`.
   Its **This week** summary shows average attendance and tardiness (the share of arrivals that were
   late), each compared with the week before, plus late arrivals, absences, attendance and lateness by
   day, and the students most often late. Use the arrows for earlier weeks; the class filter at the top
-  applies to the whole page. Today counts once classes have started.
+  applies to the whole page. Today counts once classes have started. Next to the class filter it shows
+  how many students are enrolled (male and female) in the class or the whole school.
+- **Students**: how many students there are, male and female, per section and in total, and the list
+  of every student with their card number, LRN, school ID and parent number. Search by name, card
+  number, LRN or school ID, or filter by section and sex. **Edit** opens the student on Register card.
 - **SMS log** (admin and staff): failed and waiting texts. For a wrong number, click **Change number**,
   verify the new number on **Verify numbers**, then click **Send again**.
 - **Reports**: daily or monthly attendance for one class or all, as a table, a CSV file for Excel, or
   printed / saved as PDF. Absent counts only school days: weekdays that aren't in the holiday list (admins
   add holidays at the bottom of the Reports page), counted from the day each student was added.
+  **Download Excel (SF2)** gives the month in the layout of DepEd School Form 2: one sheet per section,
+  boys then girls, a column for each weekday (blank = present, x = absent, L = late, LB = late from
+  lunch, H = holiday), absences and tardies per student, and present totals per day for boys, girls and
+  both. The school name on the sheet comes from `SCHOOL_NAME` in `server/.env`. Students with no sex set
+  are listed under "Not specified" until it's filled in.
 - **Login**: after 5 wrong passwords, that username is locked for 15 minutes.
 
 **Backups**
@@ -235,10 +251,10 @@ Backups hold students' and parents' personal data (Data Privacy Act), so keep th
 
 Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and
 delivery status, mock SMS provider), staff login, student and card registration with parent number
-verification, CSV import of students, tap-to-assign cards by class, verifying parent numbers a class at a time, the
-dashboard, SMS log with retry, daily and monthly reports, holidays, daily backups, and a login lock.
-Not built yet: Cast PH provider, replacing lost cards, the Students page (search and edit), and
-deactivating students. Routes that are not built yet answer `501 Not implemented`.
+verification, CSV import of students, tap-to-assign cards by class, card numbers, verifying parent
+numbers a class at a time, the dashboard, the Students page, SMS log with retry, daily and monthly
+reports with the SF2 Excel file, holidays, daily backups, and a login lock.
+Not built yet: Cast PH provider, replacing lost cards, and deactivating students. Routes that are not built yet answer `501 Not implemented`.
 
 ## To confirm with Cast PH
 

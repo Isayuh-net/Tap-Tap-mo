@@ -91,6 +91,7 @@ function toReply({ clientTapId, result, isLate, method }, student, smsQueued) {
     isLate: Boolean(isLate),
     name: student ? student.full_name : null,
     gradeSection: student ? classLabel(student) : null,
+    schoolId: student?.school_id ?? null,
     smsQueued,
     backBy: result === 'lunch_out' ? clockLabel(config.schedule.lunchEnd) : null, // "Be back by 1:00 PM"
   };

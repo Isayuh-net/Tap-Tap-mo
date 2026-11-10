@@ -105,7 +105,9 @@ function today(filters = {}) {
 // Students for a report, in class order, who were already in the system on `lastDate`.
 function reportStudents(filters, lastDate) {
   const f = studentFilter(filters);
-  return db.prepare(`SELECT s.* FROM students s WHERE ${f.sql} ORDER BY s.grade_level, s.strand, s.section, s.full_name`)
+  // Within a section, boys first then girls (as on SF2), then by name
+  return db.prepare(`SELECT s.* FROM students s WHERE ${f.sql}
+    ORDER BY s.grade_level, s.strand, s.section, CASE s.sex WHEN 'M' THEN 0 WHEN 'F' THEN 1 ELSE 2 END, s.full_name`)
     .all(...f.params)
     .filter((s) => addedOn(s) <= lastDate);
 }
@@ -132,7 +134,9 @@ function daily(date, filters = {}) {
     if (t?.first_in) status = t.late ? 'Late' : 'Present';
     return {
       lrn: s.lrn,
+      schoolId: s.school_id,
       name: s.full_name,
+      sex: s.sex,
       gradeLevel: s.grade_level,
       strand: s.strand,
       section: s.section,
@@ -207,7 +211,9 @@ function monthly(month, filters = {}) {
     const lateDays = presentDays.filter((d) => theirs.get(d));
     return {
       lrn: s.lrn,
+      schoolId: s.school_id,
       name: s.full_name,
+      sex: s.sex,
       gradeLevel: s.grade_level,
       strand: s.strand,
       section: s.section,
