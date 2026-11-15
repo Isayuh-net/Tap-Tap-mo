@@ -16,19 +16,19 @@
       <h3>1. Prepare the file</h3>
       <ul class="steps">
         <li>Use the school's enrollment list (for example the SF1 School Register), or fill in the
-          <a href="templates/students-template.csv" download>blank template</a>.</li>
+          <a href="/api/templates/students">school's template</a> (Download template on the Students page gives the same file).</li>
         <li>It needs columns for the student's name, <b>Grade</b>, <b>Strand</b> and <b>Section</b>.
           Recommended: <b>Sex</b> (M or F, for the SF2 download), <b>LRN</b>, <b>School ID</b>, parent or guardian name,
           and <b>parent mobile number</b>.</li>
         <li>The name can be one column ("Dela Cruz, Juan, Santos") or separate First, Middle and Last Name columns.</li>
-        <li>In Excel, choose <b>File &gt; Save As &gt; CSV UTF-8</b>. Format the LRN column as Text first,
-          or Excel may change long numbers.</li>
+        <li>Choose the Excel file (.xlsx) as it is, or a CSV saved with <b>File &gt; Save As &gt; CSV UTF-8</b>.
+          Format the LRN column as Text, or Excel may change long numbers.</li>
       </ul>
     </section>
 
     <section class="panel block">
-      <h3>2. Choose the CSV file</h3>
-      <input id="file" type="file" accept=".csv,text/csv">
+      <h3>2. Choose the Excel or CSV file</h3>
+      <input id="file" type="file" accept=".xlsx,.csv,text/csv" style="margin-top: 16px">
       <p class="hint">Nothing is saved yet. You'll see a preview first.</p>
     </section>
 

@@ -5,6 +5,8 @@ const config = require('../config');
 const gateAuth = require('../middleware/gateAuth');
 const { recordTap } = require('../services/attendance');
 const smsQueue = require('../services/smsQueue');
+const photos = require('../services/photos');
+const { photoVersion } = photos;
 const { classLabel } = require('../utils/classLabel');
 const { displayTime } = require('../utils/time');
 
@@ -39,7 +41,7 @@ function logTap(gateId, tap, reply) {
 // Upload taps. The gate saves every tap locally before sending it, and resends anything
 // the server has not confirmed. Every tap gets a result, so the gate can remove it from its outbox.
 // Body:  { taps: [{ clientTapId, uid, tappedAt }] }
-// Reply: { results: [{ clientTapId, result, name, gradeSection, isLate, smsQueued }] }
+// Reply: { results: [{ clientTapId, result, name, gradeSection, isLate, smsQueued, studentId, photoVersion }] }
 router.post('/taps', (req, res) => {
   const taps = req.body?.taps;
   if (!Array.isArray(taps) || taps.length > MAX_TAPS_PER_UPLOAD) {
@@ -65,26 +67,42 @@ router.post('/taps', (req, res) => {
   if (results.some((r) => r.smsQueued)) smsQueue.sendSoon();
 });
 
+// What the gate keeps for one student: shown when the server can't be reached.
+const rosterEntry = (r) => ({
+  name: r.full_name,
+  gradeSection: classLabel(r),
+  schoolId: r.school_id,
+  studentId: r.id,
+  photoVersion: photoVersion(r), // the gate downloads the photo when this changes
+});
+
 // Active cards and student names, cached by the gate so it can still show
-// names when the server cannot be reached. LRNs are included for students who type theirs.
-// Reply: { cards: { [uid]: { name, gradeSection } }, lrns: { [lrn]: { name, gradeSection } } }
+// names (and photos) when the server cannot be reached. LRNs are included for students who type theirs.
+// Reply: { cards: { [uid]: entry }, lrns: { [lrn]: entry } }, entry = { name, gradeSection, schoolId, studentId, photoVersion }
 router.get('/roster', (req, res) => {
   const rows = db.prepare(`
-    SELECT c.uid, s.full_name, s.grade_level, s.strand, s.section, s.school_id
+    SELECT c.uid, s.id, s.full_name, s.grade_level, s.strand, s.section, s.school_id, s.photo_updated_at
     FROM cards c JOIN students s ON s.id = c.student_id
     WHERE c.status = 'active' AND s.active = 1
   `).all();
   const cards = {};
-  for (const r of rows) {
-    cards[r.uid] = { name: r.full_name, gradeSection: classLabel(r), schoolId: r.school_id };
-  }
+  for (const r of rows) cards[r.uid] = rosterEntry(r);
   const lrns = {};
   if (config.allowLrnEntry) {
-    for (const r of db.prepare('SELECT lrn, full_name, grade_level, strand, section, school_id FROM students WHERE active = 1 AND lrn IS NOT NULL').all()) {
-      lrns[r.lrn] = { name: r.full_name, gradeSection: classLabel(r), schoolId: r.school_id };
-    }
+    const withLrn = db.prepare(`
+      SELECT lrn, id, full_name, grade_level, strand, section, school_id, photo_updated_at
+      FROM students WHERE active = 1 AND lrn IS NOT NULL
+    `).all();
+    for (const r of withLrn) lrns[r.lrn] = rosterEntry(r);
   }
   res.json({ cards, lrns });
+});
+
+// A student's photo (JPEG), downloaded by the gate and kept for offline use.
+router.get('/photos/:studentId', (req, res) => {
+  const file = photos.filePath(Number(req.params.studentId));
+  if (!file) return res.status(404).json({ error: 'No photo' });
+  res.sendFile(file);
 });
 
 module.exports = router;

@@ -38,14 +38,16 @@ Tap-Tap-mo/
 │   │   ├── routes/             The API: one file per area (URLs only, logic lives in services/)
 │   │   │   ├── gate.js         Taps from the gate apps, roster for offline names
 │   │   │   ├── auth.js         Staff login
-│   │   │   ├── students.js     Student records, CSV import
+│   │   │   ├── students.js     Student records, Excel or CSV import, section sizes, student list
 │   │   │   ├── cards.js        Link, replace, deactivate RFID cards
 │   │   │   ├── verification.js Parent mobile number code
-│   │   │   ├── attendance.js   Today's taps and counts (dashboard)
+│   │   │   ├── attendance.js   Today's counts and taps, weekly summary, Log by LRN, records API
 │   │   │   ├── sms.js          SMS log, failed texts, retry, credits
 │   │   │   ├── reports.js      Daily and monthly reports, CSV and Excel (SF2) export
 │   │   │   ├── holidays.js     No-class days
-│   │   │   └── backups.js      Latest backup, back up now
+│   │   │   ├── backups.js      Latest backup, back up now
+│   │   │   ├── settings.js     Lunch and SMS settings (admins)
+│   │   │   └── templates.js    School templates on Reports and files
 │   │   ├── services/           The actual logic
 │   │   │   ├── attendance.js   What a tap means: time in, lunch, late, early out, time out
 │   │   │   ├── smsQueue.js     Background sending and retries
@@ -54,17 +56,24 @@ Tap-Tap-mo/
 │   │   │   ├── verification.js   Parent number codes (one student or a whole class)
 │   │   │   ├── attendanceReports.js  Dashboard counts, daily and monthly reports
 │   │   │   ├── sf2.js          Monthly attendance as an Excel file in the SF2 layout
+│   │   │   ├── excelExports.js Excel files: attendance (daily or monthly) and a section's student list
+│   │   │   ├── reportFiles.js  Copies of downloaded reports, one folder per school year and section
+│   │   │   ├── templates.js    The school's SF2 and student list templates
+│   │   │   ├── settings.js     Settings changed on the dashboard (they replace .env values)
 │   │   │   ├── schoolDays.js   Weekdays that aren't holidays
 │   │   │   ├── smsLog.js       SMS log, today's counts, retrying texts
 │   │   │   ├── internet.js     Checks every minute whether the internet is up
-│   │   │   ├── backup.js       Daily database backup
+│   │   │   ├── backup.js       Daily database backup (and a copy of the photos)
+│   │   │   ├── photos.js       Student photos shown at the gate
 │   │   │   └── sms/            SMS providers, all with the same functions
-│   │   │       ├── index.js    Picks the provider from SMS_PROVIDER
-│   │   │       ├── mockProvider.js    Prints texts to the console (development)
-│   │   │       └── castphProvider.js  Real texts (after Cast PH gives API details)
+│   │   │       ├── index.js    The provider chosen on Lunch and SMS settings (or SMS_PROVIDER)
+│   │   │       ├── mockProvider.js       Prints texts to the console (test mode)
+│   │   │       ├── semaphoreProvider.js  Real texts through Semaphore (semaphore.co)
+│   │   │       └── castphProvider.js     Real texts (after Cast PH gives API details)
 │   │   ├── middleware/         Gate key check, staff login check
 │   │   └── utils/time.js       Dates and times in Asia/Manila
-│   └── public/                 Staff dashboard (HTML, CSS, JS)
+│   └── public/                 Staff dashboard (HTML, CSS, JS): school maroon sidebar built by
+│                               js/nav.js, styles in css/style.css, school logo in img/logo.png
 │
 └── gate-app/                   Runs on each gate PC (Electron)
     ├── config.example.json     Server address, gate id and key: copy to config.json
@@ -73,8 +82,10 @@ Tap-Tap-mo/
         ├── preload.js          Safe bridge between the screen and main.js
         ├── outbox.js           Taps waiting to be uploaded (saved to disk first)
         ├── roster.js           Local card -> name list for offline mode
-        ├── sync.js             Uploads taps, downloads the roster
+        ├── photos.js           Student photos kept on the gate PC for offline mode
+        ├── sync.js             Uploads taps, downloads the roster and photos
         └── renderer/           The gate screen (Figure 3: waiting, ok, offline, not registered)
+                                on the school background (background.jpg); photo appears in its box
 ```
 
 ## User stories → where they live
@@ -133,8 +144,9 @@ to test: type any card number and press Enter. A USB reader does the same thing.
 
 **Add many students at once**
 
-1. **Import students**: upload the enrollment list (for example the SF1 School Register) saved from
-   Excel as **CSV UTF-8**, or fill in the template on that page. You see a preview of every row first,
+1. **Import students**: upload the enrollment list (for example the SF1 School Register) as an Excel
+   file (.xlsx) or CSV, or fill in the school's template (**Download template** on the Students page,
+   then **Import filled template**). You see a preview of every row first,
    with problems (bad grade, unknown strand, invalid number, LRN changed by Excel) and students already
    added. Only the good new rows are imported, so you can fix the file and import it again safely.
    Include the **Sex** (M or F) and **School ID** columns: sex sorts boys and girls on the SF2 sheet, and
@@ -186,7 +198,8 @@ Restart the gate app (or wait 5 minutes) so it downloads new names for offline m
 
 ## The school day
 
-Set in `server/.env` (restart the server after changing them):
+Set in `server/.env` (restart the server after changing them). The lunch times can also be changed on
+**Lunch and SMS settings** without restarting; those replace `LUNCH_START` and `LUNCH_END`.
 
 | Time | Setting | What happens |
 |---|---|---|
@@ -211,26 +224,58 @@ Register card page, or `add-student --lrn`.
 
 ## Daily use
 
-- **Dashboard**: today's present, late and absent counts, texts sent, internet and SMS credit status,
-  the last backup (admins), failed texts, and every tap with its text status. It updates every 15 seconds.
-  Its **This week** summary shows average attendance and tardiness (the share of arrivals that were
-  late), each compared with the week before, plus late arrivals, absences, attendance and lateness by
-  day, and the students most often late. Use the arrows for earlier weeks; the class filter at the top
-  applies to the whole page. Today counts once classes have started. Next to the class filter it shows
-  how many students are enrolled (male and female) in the class or the whole school.
-- **Students**: how many students there are, male and female, per section and in total, and the list
-  of every student with their card number, LRN, school ID and parent number. Search by name, card
-  number, LRN or school ID, or filter by section and sex. **Edit** opens the student on Register card.
+The sidebar has the five everyday pages first (Dashboard, Students, Log by LRN, Reports and files,
+Lunch and SMS settings), then **Cards and parents** (Register card, Assign cards, Import students,
+Verify numbers, SMS log). Each person only sees the pages their role can use.
+
+- **Dashboard**: today's **on time**, **late**, **absent** and **late from lunch** counts, then the
+  **Attendance summary this week**: average attendance (compared with the week before), tardiness (late
+  arrivals out of all arrivals), late from lunch and absences, and each day with its attendance bar,
+  late arrivals and late from lunch, plus the students most often late. Use **Previous week** for earlier
+  weeks; the class filter at the top applies to the whole page and shows how many are enrolled (male and
+  female). Below: failed texts (admin and staff), and **Today's taps** with each parent's text status,
+  internet and SMS status, and the last backup (admins). Updates every 15 seconds.
+- **Students**: the number of students in all and per section (male and female). Pick a section with the
+  tabs at the top, or search every section by name, LRN, ID number or card number. Each section shows its
+  **Male** and **Female** students (first 10, then **Show all**) with their LRN, ID number, RFID card
+  number (and card no.), and parent's number. **Number of students in this section** + **Repopulate
+  list** saves how many students the section should have and reloads the list, saying how many are
+  still missing. **Download Excel** gives the section's list with Male and Female sheets (admin and
+  staff, since it has parents' numbers). **Download template** / **Import filled template** add
+  students. **Edit** opens the student on Register card; **Add photo** (or **Change photo**) adds the
+  photo the gate screen shows when they tap. Photos are shrunk in the browser before upload (600 x 800
+  at most, about 50 KB), saved in `server/data/photos` (`PHOTOS_DIR`), and downloaded by each gate so they
+  still show when the server is offline. A new photo shows the next time the student taps.
+- **Log by LRN** (admin and staff): for a student without their card, type their 12-digit LRN at the
+  office and click **Log attendance**. It counts like a tap (time in, lunch, time out) and texts the
+  parent the same way, marked "Office" and "LRN". The list shows everyone logged by LRN today, here or at
+  a gate's LRN box.
+- **Reports and files**: **Download student attendance** as Excel: **Daily** or **Monthly**, one section
+  or all, with **Separate male and female** (a Male and a Female sheet per section) or both together.
+  Monthly files use the layout of DepEd School Form 2 (SF2): a column for each weekday (blank = present,
+  x = absent, L = late, LB = late from lunch, H = holiday), absences and tardies per student, and present
+  totals per day. Daily files list each student's time in, time out, status and notes. The school name
+  on the sheets comes from `SCHOOL_NAME` in `server/.env`; students with no sex set are listed under "Not
+  specified". **Show the attendance on screen** has the same numbers as a table, a CSV download and
+  printing. Absent counts only school days (weekdays not in the holiday list at the bottom, added by
+  admins), from the day each student was added.
+  **School templates**: the school's SF2 form and student list template. **Replace** (admin and staff)
+  uploads the school's newest version, and every **Download** gives that one.
+  **Directory folder**: every Excel download is also saved on the server PC, in one folder per school
+  year and section (`School year 2026-2027/Grade 11 - STEM A/...`). Downloading the same report again
+  replaces the copy with the newer numbers. The folder is `server/data/reports` (`REPORTS_DIR`) until an
+  admin uses **Change folder** (for example `C:\Tap-Tap Mo\Reports`).
+- **Lunch and SMS settings** (admins): the lunch break and the time students must be back by, and the
+  text parents get when their child is late from lunch. The words in brackets ([Student name],
+  [section], [time], [date], [cutoff]) are filled in for each student; the page shows an example and
+  refuses a text that wouldn't fit in one SMS credit. **SMS provider**: test mode (texts are printed in
+  the server window), or **Semaphore** with the API key and an approved sender name from the school's
+  Semaphore account. **Send test text** checks the details before saving. Cast PH is listed but can't
+  be chosen until they send their API details. **Student ID number in the API** shows a record from
+  `GET /api/attendance/records?date=YYYY-MM-DD`, which lists every time in and out with the student's
+  ID number (`id_number`), LRN, name, section, type, late or not, and `tapped_at` in Philippine time.
 - **SMS log** (admin and staff): failed and waiting texts. For a wrong number, click **Change number**,
   verify the new number on **Verify numbers**, then click **Send again**.
-- **Reports**: daily or monthly attendance for one class or all, as a table, a CSV file for Excel, or
-  printed / saved as PDF. Absent counts only school days: weekdays that aren't in the holiday list (admins
-  add holidays at the bottom of the Reports page), counted from the day each student was added.
-  **Download Excel (SF2)** gives the month in the layout of DepEd School Form 2: one sheet per section,
-  boys then girls, a column for each weekday (blank = present, x = absent, L = late, LB = late from
-  lunch, H = holiday), absences and tardies per student, and present totals per day for boys, girls and
-  both. The school name on the sheet comes from `SCHOOL_NAME` in `server/.env`. Students with no sex set
-  are listed under "Not specified" until it's filled in.
 - **Login**: after 5 wrong passwords, that username is locked for 15 minutes.
 
 **Backups**
@@ -245,15 +290,21 @@ npm run backup
 
 To restore: stop the server, copy a backup over `server/data/tap-tap-mo.db`, delete
 `tap-tap-mo.db-wal` and `tap-tap-mo.db-shm` in the same folder if they exist, and start the server.
-Backups hold students' and parents' personal data (Data Privacy Act), so keep the drive locked away.
+Student photos are kept as one up-to-date copy in the `photos` folder inside `BACKUP_DIR`; to restore
+them, copy its files into `server/data/photos`.
+Backups hold students' and parents' personal data and photos (Data Privacy Act), so keep the drive locked away.
 
 ## Status
 
 Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and
-delivery status, mock SMS provider), staff login, student and card registration with parent number
-verification, CSV import of students, tap-to-assign cards by class, card numbers, verifying parent
-numbers a class at a time, the dashboard, the Students page, SMS log with retry, daily and monthly
-reports with the SF2 Excel file, holidays, daily backups, and a login lock.
+delivery status, test mode and Semaphore SMS providers), staff login, student and card registration
+with parent number verification, Excel and CSV import of students, tap-to-assign cards by class, card
+numbers, student photos, verifying parent numbers a class at a time, the dashboard, the Students page
+with section sizes, Log by LRN, daily and monthly Excel reports (SF2, male and female sheets) saved in
+a folder per section, school templates, Lunch and SMS settings, the attendance records API, SMS log
+with retry, holidays, daily backups, and a login lock.
+The Semaphore provider was tested against a stand-in server that answers like Semaphore's API, not
+yet with a real Semaphore account: send one **Send test text** before switching parents to it.
 Not built yet: Cast PH provider, replacing lost cards, and deactivating students. Routes that are not built yet answer `501 Not implemented`.
 
 ## To confirm with Cast PH

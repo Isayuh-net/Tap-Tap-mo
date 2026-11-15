@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lunch and SMS settings | Tap-Tap Mo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- filled in by js/nav.js -->
+  <main>
+    <h2>Lunch and SMS settings</h2>
+    <p class="subtitle">When parents get a text, and which SMS provider sends it. Changes apply right away.</p>
+    <p id="page-message" class="message" role="alert"></p>
+
+    <section class="panel block">
+      <h3>Lunch break</h3>
+      <div class="field-row" style="margin: 18px 0 22px">
+        <label>Lunch starts <input id="lunch-start" type="time" required></label>
+        <label>Students must be back by <input id="lunch-end" type="time" required></label>
+      </div>
+      <div class="info-row">
+        <div class="info-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 4h11.5A1.5 1.5 0 0 1 21 5.5v9a1.5 1.5 0 0 1-1.5 1.5H18M14 16H9l-4 4v-4H4.5A1.5 1.5 0 0 1 3 14.5v-9c0-.5.2-.9.6-1.2"/><path d="M2 2l20 20"/>
+          </svg>
+          <div><strong id="quiet-title">&nbsp;</strong><span>Taps are logged. Parents don't get a text.</span></div>
+        </div>
+        <div class="info-box alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.5 4h15A1.5 1.5 0 0 1 21 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-4 4v-4h-.5A1.5 1.5 0 0 1 3 14.5v-9A1.5 1.5 0 0 1 4.5 4z"/>
+          </svg>
+          <div><strong id="late-title">&nbsp;</strong><span>Logged as late from lunch. The parent gets a text.</span></div>
+        </div>
+      </div>
+
+      <label for="late-text">Text sent to parents</label>
+      <textarea id="late-text" maxlength="300" style="margin-top: 8px"></textarea>
+      <p class="hint">The words in brackets are filled in for each student: [Student name], [section], [time], [date] and [cutoff].
+        <button type="button" id="default-text" class="link-button">Use the default text</button></p>
+      <div class="inset" style="margin-top: 14px">
+        <div class="field-label">Example</div>
+        <p id="example" style="margin: 6px 0 0"></p>
+        <p id="counter" class="counter"></p>
+      </div>
+      <p id="lunch-message" class="message" role="status" style="margin: 18px 0 0"></p>
+      <button type="button" id="save-lunch" class="primary" style="margin-top: 20px">Save lunch settings</button>
+    </section>
+
+    <section class="panel block">
+      <div class="card-head">
+        <div>
+          <h3>SMS provider</h3>
+          <p>Switch providers here. No code changes are needed.</p>
+        </div>
+        <span id="provider-status" class="status-pill">&nbsp;</span>
+      </div>
+      <div class="row">
+        <label>Provider <select id="provider"></select></label>
+        <label>Sender name <input id="sender-name" maxlength="11" placeholder="BCNHS"></label>
+        <label>API URL <input id="api-url" placeholder="From your provider account"></label>
+      </div>
+      <div class="row">
+        <label>API key <input id="api-key" type="password" autocomplete="off" placeholder="From your provider account"></label>
+      </div>
+      <div class="inset test-box">
+        <div class="field-row">
+          <label>Send a test text to <input id="test-to" inputmode="tel" placeholder="09XX XXX XXXX"></label>
+          <button type="button" id="send-test">Send test text</button>
+        </div>
+        <button type="button" id="save-sms" class="primary">Save provider</button>
+      </div>
+      <p id="sms-message" class="message" role="status" style="margin: 16px 0 0"></p>
+      <p id="sms-hint" class="hint" style="margin-top: 16px"></p>
+    </section>
+
+    <section class="panel block">
+      <h3>Student ID number in the API</h3>
+      <p class="hint" style="margin-top: 4px">Each attendance record the API sends names the student by their school ID number
+        (set on Register card or in the import). Staff log in to use it.</p>
+      <div id="api-example" class="code">Loading...</div>
+    </section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+</html>

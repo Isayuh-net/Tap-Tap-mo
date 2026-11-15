@@ -57,6 +57,7 @@ function addColumn(table, column, definition) {
 addColumn('taps', 'method', "TEXT NOT NULL DEFAULT 'card'"); // older taps were all cards
 addColumn('students', 'sex', 'TEXT');
 addColumn('students', 'school_id', 'TEXT');
+addColumn('students', 'photo_updated_at', 'TEXT');
 addColumn('cards', 'card_no', 'INTEGER');
 
 // Unique only when filled in (ALTER TABLE can't add UNIQUE, so these are indexes instead).

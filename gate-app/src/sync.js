@@ -3,10 +3,12 @@
 //    Taps the server answers for are removed from the outbox; the rest stay for the next try.
 //    Returns the server's results, or null if the server could not be reached.
 //  - Every few seconds: retry the upload, so taps saved during an outage go up automatically.
-//  - Every few minutes: refresh the roster used to show names while offline.
+//  - Every few minutes: refresh the roster used to show names while offline, and download
+//    student photos that are new or changed.
 const config = require('./config');
 const outbox = require('./outbox');
 const roster = require('./roster');
+const photos = require('./photos');
 
 const RETRY_EVERY_MS = 5000;
 const ROSTER_EVERY_MS = 5 * 60 * 1000;
@@ -60,9 +62,48 @@ async function refreshRoster() {
   try {
     const { cards, lrns } = await request('/api/gate/roster');
     roster.replace(cards, lrns);
+    await refreshPhotos([...Object.values(cards), ...Object.values(lrns)]);
   } catch (err) {
     console.warn(`Roster not refreshed: ${err.message}`);
   }
+}
+
+async function downloadPhoto(studentId, version) {
+  const res = await fetch(`${config.serverUrl}/api/gate/photos/${studentId}`, {
+    headers,
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Server replied ${res.status} for photo ${studentId}`);
+  photos.save(studentId, version, Buffer.from(await res.arrayBuffer()));
+}
+
+// Downloads the photos this gate doesn't have yet, one at a time, and deletes ones no longer used.
+// The first run downloads the whole school's photos (about 50 KB each), in the background.
+let photosBusy = false; // the first run can take longer than ROSTER_EVERY_MS; don't start a second one
+async function refreshPhotos(students) {
+  if (photosBusy) return;
+  photosBusy = true;
+  try {
+    const wanted = new Map(); // file name -> student
+    for (const s of students) {
+      if (s.studentId && s.photoVersion) wanted.set(photos.fileName(s.studentId, s.photoVersion), s);
+    }
+    photos.keepOnly(new Set(wanted.keys()));
+    let failed = 0;
+    for (const s of wanted.values()) {
+      if (photos.has(s.studentId, s.photoVersion)) continue;
+      await downloadPhoto(s.studentId, s.photoVersion).catch(() => { failed += 1; });
+    }
+    if (failed) console.warn(`${failed} photo(s) not downloaded; will try again at the next roster refresh`);
+  } finally {
+    photosBusy = false;
+  }
+}
+
+// A student tapped whose photo this gate doesn't have yet (just uploaded): get it now if possible.
+async function ensurePhoto(studentId, version) {
+  if (!studentId || !version || photos.has(studentId, version)) return;
+  await downloadPhoto(studentId, version).catch((err) => console.warn(`Photo not downloaded: ${err.message}`));
 }
 
 function uploadInBackground() {
@@ -76,4 +117,4 @@ function start() {
   setInterval(refreshRoster, ROSTER_EVERY_MS);
 }
 
-module.exports = { start, uploadNow };
+module.exports = { start, uploadNow, ensurePhoto };

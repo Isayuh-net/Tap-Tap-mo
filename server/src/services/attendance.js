@@ -27,6 +27,7 @@ const { schoolDate, schoolTime, clockLabel } = require('../utils/time');
 const { normalizeUid } = require('../utils/normalize');
 const { schoolDayInfo } = require('./schoolDays');
 const { classLabel } = require('../utils/classLabel');
+const { photoVersion } = require('./photos');
 
 // Results that mean the student came in or went out (the others: cooldown, unregistered, inactive).
 const MOVEMENTS = ['time_in', 'lunch_out', 'lunch_in', 'time_out', 'early_out'];
@@ -92,6 +93,8 @@ function toReply({ clientTapId, result, isLate, method }, student, smsQueued) {
     name: student ? student.full_name : null,
     gradeSection: student ? classLabel(student) : null,
     schoolId: student?.school_id ?? null,
+    studentId: student?.id ?? null,
+    photoVersion: photoVersion(student), // the gate shows the student's photo (null = none)
     smsQueued,
     backBy: result === 'lunch_out' ? clockLabel(config.schedule.lunchEnd) : null, // "Be back by 1:00 PM"
   };
@@ -103,7 +106,8 @@ function parseTapTime(tappedAt) {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
-const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
+// byLrn: true when staff type the LRN on the dashboard (Log by LRN): it is only looked up as an LRN.
+const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt, byLrn = false }) => {
   const saved = findTap.get(clientTapId);
   if (saved) {
     const student = saved.student_id ? findStudent.get(saved.student_id) : null;
@@ -126,8 +130,8 @@ const recordTap = db.transaction(({ clientTapId, uid, gateId, tappedAt }) => {
   };
   let textKind = null;
 
-  let student = findCard.get(cardUid);
-  if (!student && config.allowLrnEntry && LRN.test(cardUid)) {
+  let student = byLrn ? null : findCard.get(cardUid);
+  if (byLrn || (!student && config.allowLrnEntry && LRN.test(cardUid))) {
     tap.method = 'lrn'; // no card has this number, so it was typed as an LRN
     const byLrn = findStudentByLrn.get(cardUid);
     if (byLrn) student = { ...byLrn, card_status: 'active' }; // works even if their card was lost

@@ -7,6 +7,7 @@ const { normalizeUid, normalizeMobile } = require('../utils/normalize');
 const { STRANDS, canonicalStrand } = require('../utils/strands');
 const { classLabel } = require('../utils/classLabel');
 const { httpError } = require('../utils/httpError');
+const { photoVersion } = require('./photos');
 
 const findStudent = db.prepare('SELECT * FROM students WHERE id = ?');
 const findActiveCard = db.prepare("SELECT uid, card_no FROM cards WHERE student_id = ? AND status = 'active'");
@@ -41,6 +42,7 @@ function toJson(student) {
     mobileVerified: Boolean(student.mobile_verified_at),
     cardUid: card?.uid ?? null,
     cardNo: cardLabel(card?.card_no),
+    photoVersion: photoVersion(student), // null = no photo yet
   };
 }
 
@@ -148,8 +150,10 @@ function classes() {
   return db.prepare(`
     SELECT s.grade_level, s.strand, s.section, COUNT(*) AS students, COUNT(c.uid) AS with_card,
            COUNT(s.mobile_verified_at) AS verified,
-           SUM(s.sex = 'M') AS male, SUM(s.sex = 'F') AS female
-    FROM students s LEFT JOIN cards c ON c.student_id = s.id AND c.status = 'active'
+           SUM(s.sex = 'M') AS male, SUM(s.sex = 'F') AS female, z.expected
+    FROM students s
+    LEFT JOIN cards c ON c.student_id = s.id AND c.status = 'active'
+    LEFT JOIN section_sizes z ON z.grade_level = s.grade_level AND z.strand = s.strand AND z.section = s.section
     WHERE s.active = 1
     GROUP BY s.grade_level, s.strand, s.section
     ORDER BY s.grade_level, s.strand, s.section
@@ -164,7 +168,28 @@ function classes() {
     sexNotSet: r.students - r.male - r.female,
     withoutCard: r.students - r.with_card,
     unverified: r.students - r.verified,
+    expected: r.expected, // how many students the section should have (null = not set)
   }));
+}
+
+// Sets how many students a section should have, so the Students page can say how many are
+// still missing. expected null (or empty) clears it.
+function setSectionSize({ gradeLevel, strand, section, expected }) {
+  const cls = db.prepare('SELECT 1 FROM students WHERE grade_level = ? AND strand = ? AND section = ? LIMIT 1')
+    .get(Number(gradeLevel), String(strand ?? ''), String(section ?? ''));
+  if (!cls) throw httpError(404, 'That section has no students yet.');
+  const key = [Number(gradeLevel), String(strand ?? ''), String(section ?? '')];
+  if (expected === null || expected === '' || expected === undefined) {
+    db.prepare('DELETE FROM section_sizes WHERE grade_level = ? AND strand = ? AND section = ?').run(...key);
+    return { expected: null };
+  }
+  const n = Number(expected);
+  if (!Number.isInteger(n) || n < 1 || n > 200) throw httpError(400, 'Enter the number of students, from 1 to 200.');
+  db.prepare(`
+    INSERT INTO section_sizes (grade_level, strand, section, expected) VALUES (?, ?, ?, ?)
+    ON CONFLICT (grade_level, strand, section) DO UPDATE SET expected = excluded.expected
+  `).run(...key, n);
+  return { expected: n };
 }
 
 // Who owns this card? Returns null for a card that was never registered.
@@ -250,5 +275,5 @@ const removeUnusedCard = db.transaction((uid) => {
 
 module.exports = {
   checkFields, checkLrn, checkSchoolId, normalizeSex, cardLabel, insertCard,
-  list, classes, findByCard, create, update, changeMobile, assignCard, removeUnusedCard,
+  list, classes, setSectionSize, findByCard, create, update, changeMobile, assignCard, removeUnusedCard,
 };

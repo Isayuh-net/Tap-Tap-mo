@@ -209,4 +209,27 @@ function importStudents(csvText, { commit = false } = {}) {
   };
 }
 
-module.exports = { importStudents };
+// An Excel file (.xlsx, sent as base64) turned into CSV text for importStudents(), so the school's
+// template can be filled in Excel and imported without saving it as CSV first. Uses the first sheet
+// with data, as the cells are shown in Excel (so an LRN stays 12 digits).
+async function xlsxToCsv(base64) {
+  const ExcelJS = require('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.load(Buffer.from(String(base64 ?? ''), 'base64'));
+  } catch {
+    throw httpError(400, 'This Excel file could not be read. Save it as .xlsx (or CSV UTF-8) and try again.');
+  }
+  const sheet = workbook.worksheets.find((ws) => ws.actualRowCount > 0);
+  if (!sheet) throw httpError(400, 'The Excel file is empty.');
+  const quote = (text) => (/[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
+  const lines = [];
+  sheet.eachRow({ includeEmpty: false }, (row) => {
+    const cells = [];
+    for (let c = 1; c <= sheet.actualColumnCount; c++) cells.push(quote(row.getCell(c).text.trim()));
+    lines.push(cells.join(','));
+  });
+  return lines.join('\r\n');
+}
+
+module.exports = { importStudents, xlsxToCsv };

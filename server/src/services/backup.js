@@ -6,6 +6,8 @@
 // Backups contain students' and parents' personal data: keep the drive in a locked place.
 // To restore: stop the server, copy a backup over data/tap-tap-mo.db, delete data/tap-tap-mo.db-wal and
 // data/tap-tap-mo.db-shm if they exist, then start the server again.
+// Student photos are files, not in the database: the backups folder keeps one up-to-date copy of them
+// in backups/photos. To restore photos, copy that folder's files into data/photos.
 const fs = require('node:fs');
 const path = require('node:path');
 const db = require('../db');
@@ -42,7 +44,24 @@ async function backupNow({ manual = false } = {}) {
   await db.backup(`${target}.tmp`);
   fs.renameSync(`${target}.tmp`, target);
   prune();
+  backupPhotos();
   return { file: path.basename(target), size: fs.statSync(target).size };
+}
+
+// Brings backups/photos up to date: copies new and changed photos, removes deleted ones.
+function backupPhotos() {
+  if (!fs.existsSync(config.photosDir)) return;
+  const target = path.join(dir, 'photos');
+  fs.mkdirSync(target, { recursive: true });
+  const current = new Set(fs.readdirSync(config.photosDir).filter((f) => f.endsWith('.jpg')));
+  for (const file of current) {
+    const from = path.join(config.photosDir, file);
+    const to = path.join(target, file);
+    if (!fs.existsSync(to) || fs.statSync(to).mtimeMs < fs.statSync(from).mtimeMs) fs.copyFileSync(from, to);
+  }
+  for (const file of fs.readdirSync(target)) {
+    if (!current.has(file)) fs.rmSync(path.join(target, file), { force: true });
+  }
 }
 
 function isDue() {

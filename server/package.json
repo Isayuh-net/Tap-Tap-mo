@@ -12,6 +12,8 @@
     "backup": "node --env-file-if-exists=.env scripts/backup.js"
   },
   "dependencies": {
+    "@fontsource-variable/atkinson-hyperlegible-mono": "^5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
     "better-sqlite3": "^13.0.3",
     "exceljs": "^4.4.0",
     "express": "^5.3.0",

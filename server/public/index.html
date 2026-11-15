@@ -7,107 +7,102 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- filled in by js/nav.js -->
   <main>
     <!-- Figure 5 of the design doc. US-09, US-10, US-12 -->
     <div class="page-head">
       <div>
         <h2>Today's attendance</h2>
-        <p id="today" class="subtitle"></p>
+        <p id="today" class="subtitle">&nbsp;</p>
       </div>
-      <div class="chips">
-        <span id="internet" class="chip">Internet: checking...</span>
-        <span id="credits" class="chip">SMS credits: ...</span>
-        <span id="backup" class="chip" hidden></span>
-        <a class="button primary" href="reports.html">Export report</a>
+      <!-- One filter for the whole page: today's counts, the weekly summary and the tap list -->
+      <div class="class-picker">
+        <label>Class
+          <select id="class"><option value="">All classes</option></select>
+        </label>
+        <p id="enrollment" class="hint"></p>
       </div>
-    </div>
-
-    <!-- One filter for the whole page: today's cards, the weekly summary and the tap list -->
-    <div class="filters">
-      <label>Class
-        <select id="class"><option value="">All classes</option></select>
-      </label>
-      <p id="enrollment" class="enrollment"></p>
     </div>
 
     <p id="notice" class="message info"></p>
 
-    <div class="cards">
-      <div class="card present"><div class="card-label">Present</div><div id="present" class="card-number">-</div><div id="present-note" class="card-note"></div></div>
-      <div class="card late"><div class="card-label">Late</div><div id="late" class="card-number">-</div><div id="late-note" class="card-note"></div></div>
-      <div class="card absent"><div class="card-label">Absent</div><div id="absent" class="card-number">-</div><div class="card-note">no tap yet today</div></div>
-      <div class="card texts"><div class="card-label">Texts sent today</div><div id="texts" class="card-number">-</div><div id="texts-note" class="card-note"></div></div>
+    <div class="stat-strip">
+      <div class="stat-cell">
+        <div class="stat-label good">On time</div>
+        <div id="on-time" class="stat-value">-</div>
+        <div id="on-time-note" class="stat-note"></div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label warn">Late</div>
+        <div id="late" class="stat-value">-</div>
+        <div id="late-note" class="stat-note"></div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label neutral">Absent</div>
+        <div id="absent" class="stat-value">-</div>
+        <div class="stat-note">no tap today</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label maroon">Late from lunch</div>
+        <div id="late-lunch" class="stat-value">-</div>
+        <div id="late-lunch-note" class="stat-note"></div>
+      </div>
     </div>
 
     <section class="panel block week" aria-labelledby="week-title">
-      <div class="page-head">
+      <div class="card-head">
         <div>
-          <h3 id="week-title">This week</h3>
-          <p id="week-range" class="hint"></p>
+          <h3 id="week-title">Attendance summary this week</h3>
+          <p id="week-range">&nbsp;</p>
         </div>
-        <div class="week-nav">
-          <button type="button" id="week-prev">&lsaquo; Previous week</button>
+        <div class="actions" style="margin: 0">
+          <button type="button" id="week-prev">Previous week</button>
           <button type="button" id="week-this" hidden>This week</button>
-          <button type="button" id="week-next">Next week &rsaquo;</button>
+          <button type="button" id="week-next">Next week</button>
         </div>
       </div>
 
-      <div class="stat-tiles">
-        <div class="stat">
-          <div class="stat-label">Average attendance</div>
-          <div id="avg-attendance" class="stat-value">-</div>
-          <div id="avg-attendance-delta" class="stat-delta"></div>
+      <div class="big-stats">
+        <div>
+          <div class="label">Average attendance</div>
+          <div id="avg-attendance" class="value accent">-</div>
+          <p id="avg-attendance-note" class="note"></p>
         </div>
-        <div class="stat">
-          <div class="stat-label">Tardiness</div>
-          <div id="tardiness" class="stat-value">-</div>
-          <div id="tardiness-delta" class="stat-delta"></div>
+        <div>
+          <div class="label">Tardiness</div>
+          <div id="tardiness" class="value">-</div>
+          <p id="tardiness-note" class="note"></p>
         </div>
-        <div class="stat">
-          <div class="stat-label">Late arrivals</div>
-          <div id="late-arrivals" class="stat-value">-</div>
-          <div id="late-arrivals-note" class="stat-note"></div>
+        <div>
+          <div class="label">Late from lunch</div>
+          <div id="week-lunch" class="value">-</div>
+          <p id="week-lunch-note" class="note"></p>
         </div>
-        <div class="stat">
-          <div class="stat-label">Absences</div>
-          <div id="absences" class="stat-value">-</div>
-          <div class="stat-note">student-days missed</div>
-        </div>
-      </div>
-
-      <div class="week-charts">
-        <figure class="chart">
-          <figcaption>Attendance by day</figcaption>
-          <div id="chart-attendance" class="columns attendance"></div>
-        </figure>
-        <figure class="chart">
-          <figcaption>Late arrivals by day <span class="hint">(morning and from lunch)</span></figcaption>
-          <div id="chart-late" class="columns late"></div>
-        </figure>
-        <div class="most-late">
-          <h4>Most often late</h4>
-          <ol id="most-late"></ol>
+        <div>
+          <div class="label">Absences</div>
+          <div id="absences" class="value">-</div>
+          <p class="note">student-days missed</p>
         </div>
       </div>
 
-      <details class="week-table">
-        <summary>Show the numbers</summary>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Day</th><th>Enrolled</th><th>Present</th><th>Absent</th><th>Attendance</th><th>Late (morning)</th><th>Late from lunch</th><th>Left early</th></tr>
-            </thead>
-            <tbody id="week-rows"></tbody>
-          </table>
-        </div>
-      </details>
-      <div id="chart-tip" class="chart-tip" role="tooltip" hidden></div>
+      <h4>Day by day</h4>
+      <div class="table-wrap">
+        <table class="day-table">
+          <thead><tr><th>Day</th><th style="width: 55%">Attendance</th><th class="num">Late arrivals</th><th class="num">Late from lunch</th></tr></thead>
+          <tbody id="week-rows"></tbody>
+        </table>
+      </div>
+
+      <h4 style="margin-top: 28px">Most often late this week</h4>
+      <div id="most-late" class="most-late"></div>
     </section>
 
     <section id="failed-box" class="panel block attention" hidden>
-      <div class="page-head">
-        <h3 id="failed-title">Texts that failed</h3>
+      <div class="card-head">
+        <div>
+          <h3 id="failed-title">Texts that failed</h3>
+          <p>Usually a wrong number. Fix the number, then send the text again.</p>
+        </div>
         <a class="button" href="sms-log.html?status=failed">Fix them in the SMS log</a>
       </div>
       <div class="table-wrap">
@@ -119,20 +114,33 @@
     </section>
 
     <section class="panel block">
-      <div class="filters">
-        <input id="search" type="search" placeholder="Search student...">
+      <div class="card-head">
+        <div>
+          <h3>Today's taps</h3>
+          <p>Every time in and out, and whether the parent got a text. Updates every 15 seconds.</p>
+        </div>
+        <div class="status-line">
+          <span id="internet" class="status-pill neutral">Internet: checking</span>
+          <span id="sms-status" class="status-pill neutral">SMS</span>
+          <span id="backup" class="status-pill" hidden></span>
+        </div>
+      </div>
+      <div class="search-box" style="max-width: 340px; margin-bottom: 16px">
+        <input id="search" type="search" placeholder="Search a student" aria-label="Search a student">
       </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Time</th><th>Student</th><th>Grade and section</th><th>Type</th><th>Late?</th><th>Parent mobile</th><th>Text status</th></tr>
+            <tr><th>Time</th><th>Student</th><th>Section</th><th>Type</th><th>Parent mobile</th><th>Text to parent</th></tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <p id="empty" class="hint" hidden>No taps yet today.</p>
-      <p class="hint">Updates every 15 seconds. Mobile numbers are partly hidden for privacy.</p>
+      <p id="empty" class="table-foot" hidden>No taps yet today.</p>
+      <p class="table-foot">Mobile numbers are partly hidden for privacy.</p>
     </section>
+
+    <p id="footnote" class="footnote"></p>
   </main>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>

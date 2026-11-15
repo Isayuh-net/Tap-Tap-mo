@@ -19,6 +19,10 @@ app.use(session({
 
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
+// The dashboard's fonts come from npm packages, so they load without internet.
+app.use('/fonts/text', express.static(path.dirname(require.resolve('@fontsource-variable/atkinson-hyperlegible-next'))));
+app.use('/fonts/mono', express.static(path.dirname(require.resolve('@fontsource-variable/atkinson-hyperlegible-mono'))));
+
 app.use('/api/gate', require('./routes/gate'));            // Electron gate apps
 app.use('/api/auth', require('./routes/auth'));            // staff login
 app.use('/api/students', require('./routes/students'));
@@ -29,6 +33,8 @@ app.use('/api/sms', require('./routes/sms'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/holidays', require('./routes/holidays'));
 app.use('/api/backups', require('./routes/backups'));
+app.use('/api/settings', require('./routes/settings'));    // Lunch and SMS settings
+app.use('/api/templates', require('./routes/templates'));  // school templates (Reports and files)
 
 // API errors as JSON. Errors with a status (like 400 or 409) show their message on the page;
 // anything else is logged here and the page only sees a general message.
@@ -41,7 +47,7 @@ app.use('/api', (err, req, res, next) => {
 app.use(express.static(path.join(__dirname, '..', 'public'))); // staff dashboard
 
 app.listen(config.port, '0.0.0.0', () => {
-  console.log(`Tap-Tap Mo server running on port ${config.port} (SMS provider: ${config.sms.provider})`);
+  console.log(`Tap-Tap Mo server running on port ${config.port} (SMS provider: ${require('./services/sms').name})`);
   smsQueue.start();
   internet.start();
   backup.start();

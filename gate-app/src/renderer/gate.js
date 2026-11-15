@@ -14,8 +14,14 @@ setInterval(() => {
   field('clock').textContent = new Date().toLocaleTimeString('en-US');
 }, 1000);
 
-function show({ state, banner = '', label = '', name = '', strand = '', detail = '', note = '' }) {
+// photo: the student's photo as a data: address from main.js, or null (the box then shows
+// a tap prompt, a person outline or "?", depending on the state)
+function show({ state, photo = null, banner = '', label = '', name = '', strand = '', detail = '', note = '' }) {
   screen.className = state;
+  const img = field('photo');
+  if (photo) img.src = photo;
+  else img.removeAttribute('src');
+  img.hidden = !photo;
   field('banner').textContent = banner;
   field('label').textContent = label;
   field('name').textContent = name;
@@ -52,6 +58,7 @@ function render(reply, uid) {
     const student = reply.student;
     show({
       state: 'offline',
+      photo: reply.photo,
       banner: 'OFFLINE: TAP SAVED',
       name: student ? student.name : 'Tap saved',
       strand: student ? student.gradeSection : '',
@@ -75,6 +82,7 @@ function render(reply, uid) {
     if (reply.method === 'lrn') note = `Entered by LRN. Please bring your card next time.${note ? ` ${note}.` : ''}`;
     show({
       state: reply.isLate || reply.result === 'early_out' ? 'warn' : 'ok',
+      photo: reply.photo,
       label: MOVEMENT_LABELS[reply.result],
       name: reply.name,
       strand: reply.gradeSection,
@@ -88,6 +96,7 @@ function render(reply, uid) {
     case 'cooldown':
       show({
         state: 'ok',
+        photo: reply.photo,
         label: 'ALREADY TAPPED',
         name: reply.name,
         strand: reply.gradeSection,
@@ -97,6 +106,7 @@ function render(reply, uid) {
     default: // unregistered or inactive card (screen 4)
       show({
         state: 'error',
+        photo: reply.photo, // a deactivated card still shows whose it was
         label: 'NOT RECOGNIZED',
         name: reply.method === 'lrn' ? 'LRN not found' : reply.result === 'inactive' ? 'Card deactivated' : 'Card not registered',
         detail: `${reply.method === 'lrn' ? 'LRN' : 'Card'} ${uid}`, // lets the guard or staff look it up

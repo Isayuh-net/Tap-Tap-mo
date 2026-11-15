@@ -35,6 +35,11 @@ function clockLabel(hhmmss) {
 // The school's UTC offset. The Philippines is UTC+8 all year (no daylight saving time).
 const SCHOOL_UTC_OFFSET = '+08:00';
 
+// "2026-11-13T07:42:00+08:00": a moment in school time with its offset, for the attendance API.
+function schoolIso(date) {
+  return `${schoolDate(date)}T${schoolTime(date)}${SCHOOL_UTC_OFFSET}`;
+}
+
 // "2026-10-19" -> true. Checks it is a real date, not just the right shape.
 function isDateString(text) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(text))) return false;
@@ -76,5 +81,5 @@ function datesOfMonth(month) {
 
 module.exports = {
   schoolDate, schoolTime, displayTime, displayDate, clockLabel, isDateString, dayRangeUtc, isWeekday, datesOfMonth,
-  weekDates, daysBefore,
+  weekDates, daysBefore, schoolIso,
 };

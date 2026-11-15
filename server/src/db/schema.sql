@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS students (
   guardian_mobile TEXT,                        -- stored as 09XXXXXXXXX
   mobile_verified_at TEXT,                     -- NULL = not verified, no attendance texts sent (US-05)
   active          INTEGER NOT NULL DEFAULT 1,
+  photo_updated_at TEXT,                       -- when the photo in PHOTOS_DIR last changed; NULL = no photo
   created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -96,4 +97,21 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS holidays (
   date TEXT PRIMARY KEY,                       -- YYYY-MM-DD
   name TEXT NOT NULL
+);
+
+-- Settings changed on the dashboard (lunch times, SMS provider, reports folder, templates).
+-- A setting that isn't here uses its value from .env (config.js). Values are JSON.
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- How many students each section should have (set on the Students page), to see who is still missing.
+CREATE TABLE IF NOT EXISTS section_sizes (
+  grade_level INTEGER NOT NULL,
+  strand      TEXT NOT NULL,
+  section     TEXT NOT NULL,
+  expected    INTEGER NOT NULL CHECK (expected BETWEEN 1 AND 200),
+  PRIMARY KEY (grade_level, strand, section)
 );

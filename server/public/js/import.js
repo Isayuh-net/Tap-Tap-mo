@@ -20,18 +20,28 @@ async function readCsvFile(file) {
   }
 }
 
+// An Excel file is sent as base64 text; the server turns it into CSV.
+async function readBase64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+
 $('file').addEventListener('change', async () => {
   const file = $('file').files[0];
   csvText = null;
   $('preview').hidden = true;
   showMessage(message, '', '');
   if (!file) return;
-  if (/\.xlsx?$/i.test(file.name)) {
-    showMessage(message, 'error', 'This is an Excel file. In Excel choose File > Save As > CSV UTF-8, then choose that file here.');
+  if (/\.xls$/i.test(file.name)) {
+    showMessage(message, 'error', 'This is an old Excel file (.xls). In Excel choose File > Save As > Excel Workbook (.xlsx) or CSV UTF-8, then choose that file here.');
     return;
   }
-  csvText = await readCsvFile(file);
   try {
+    csvText = /\.xlsx$/i.test(file.name)
+      ? (await api('/students/import/convert', { method: 'POST', body: { xlsx: await readBase64(file) } })).csv
+      : await readCsvFile(file);
     showResult(await api('/students/import', { method: 'POST', body: { csv: csvText, commit: false } }));
   } catch (err) {
     showMessage(message, 'error', err.message);

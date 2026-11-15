@@ -64,17 +64,18 @@ function list({ status = 'attention', date } = {}) {
   }));
 }
 
-// Credits left, checked at most every 5 minutes (null if the provider can't tell us).
-let balance = { value: null, checkedAt: 0 };
+// Credits left, checked at most every 5 minutes, and again after the provider is changed
+// (null if the provider can't tell us).
+let balance = { value: null, checkedAt: 0, provider: null };
 async function creditsLeft() {
-  if (Date.now() - balance.checkedAt > 5 * 60 * 1000) {
+  if (Date.now() - balance.checkedAt > 5 * 60 * 1000 || balance.provider !== sms.name) {
     let value = null;
     try {
       value = await sms.getBalance();
     } catch {
       // provider not set up or unreachable: keep showing "not available"
     }
-    balance = { value, checkedAt: Date.now() };
+    balance = { value, checkedAt: Date.now(), provider: sms.name };
   }
   return balance.value;
 }

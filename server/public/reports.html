@@ -3,54 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reports | Tap-Tap Mo</title>
+  <title>Reports and files | Tap-Tap Mo</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- filled in by js/nav.js -->
   <main>
-    <h2 class="no-print">Reports</h2>
-    <p class="subtitle no-print">Daily and monthly attendance. Download as CSV (opens in Excel) or print / save as PDF. (US-13)</p>
-
-    <section class="panel block no-print">
-      <div class="tabs">
-        <button type="button" id="tab-daily" class="tab active">Daily</button>
-        <button type="button" id="tab-monthly" class="tab">Monthly</button>
-      </div>
-      <div class="filters">
-        <label id="date-label">Date <input id="date" type="date"></label>
-        <label id="month-label" hidden>Month <input id="month" type="month"></label>
-        <label>Class <select id="class"><option value="">All classes</option></select></label>
-      </div>
-      <div class="actions">
-        <a id="download-sf2" class="button primary" href="#">Download Excel (SF2)</a>
-        <a id="download" class="button" href="#">Download CSV</a>
-        <button type="button" id="print">Print / save as PDF</button>
-      </div>
-    </section>
-
-    <p id="message" class="message" role="status"></p>
+    <h2 class="no-print">Reports and files</h2>
+    <p class="subtitle no-print">Download attendance in Excel and keep the school's templates in one place.</p>
 
     <section class="panel block">
-      <h3 id="title"></h3>
-      <p id="summary" class="hint"></p>
-      <div class="table-wrap">
-        <table>
-          <thead id="head"></thead>
-          <tbody id="rows"></tbody>
-        </table>
+      <h3 class="no-print">Download student attendance</h3>
+      <div class="field-row no-print" style="margin-top: 18px">
+        <div>
+          <span class="field-label">Period</span>
+          <div id="period" class="segmented" role="group" aria-label="Period">
+            <button type="button" data-period="daily">Daily</button>
+            <button type="button" data-period="monthly" class="active">Monthly</button>
+          </div>
+        </div>
+        <label id="month-label">Month <input id="month" type="month"></label>
+        <label id="date-label" hidden>Date <input id="date" type="date"></label>
+        <label style="min-width: 240px">Section <select id="class"><option value="">All sections</option></select></label>
+        <label class="check"><input id="separate" type="checkbox" checked> Separate male and female</label>
       </div>
+
+      <div class="inset pink download-box no-print">
+        <div>
+          <strong id="file-name">&nbsp;</strong>
+          <span id="file-desc"></span>
+        </div>
+        <button type="button" id="download" class="primary">Download Excel</button>
+      </div>
+      <p id="message" class="message no-print" role="status" style="margin: 16px 0 0"></p>
+
+      <details id="preview" class="more">
+        <summary class="no-print">Show the attendance on screen</summary>
+        <div class="actions no-print" style="margin: 16px 0">
+          <a id="download-csv" class="button small-button" href="#">Download CSV</a>
+          <button type="button" id="print" class="small-button">Print / save as PDF</button>
+        </div>
+        <h3 id="title"></h3>
+        <p id="summary" class="hint" style="margin-bottom: 14px"></p>
+        <div class="table-wrap">
+          <table>
+            <thead id="head"></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </details>
     </section>
 
-    <section id="holidays-box" class="panel block no-print">
-      <h3>Holidays and no-class days</h3>
-      <p class="hint">Students aren't marked absent on these days, or on weekends.</p>
-      <div id="holiday-form" class="filters" hidden>
-        <input id="holiday-date" type="date">
-        <input id="holiday-name" placeholder="e.g. All Saints' Day" maxlength="100">
-        <button type="button" id="holiday-add">Add</button>
+    <section class="panel block no-print">
+      <h3>School templates</h3>
+      <p class="hint" style="margin-top: 4px">The school provides these templates. When it sends a new version, replace the file
+        here so every download gives the new one.</p>
+      <div id="templates"></div>
+      <input id="template-file" type="file" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc" hidden>
+    </section>
+
+    <section class="panel block no-print">
+      <div class="card-head" style="margin-bottom: 0">
+        <div>
+          <h3>Directory folder</h3>
+          <p>Saved in <strong id="folder" class="mono"></strong>, one folder per section</p>
+        </div>
+        <button type="button" id="change-folder" hidden>Change folder</button>
       </div>
-      <ul id="holidays" class="plain-list"></ul>
+      <div id="folder-form" class="inset field-row" style="margin-top: 18px" hidden>
+        <label style="flex: 1; min-width: 280px">Folder on the server PC (full path)
+          <input id="folder-input" placeholder="C:\Tap-Tap Mo\Reports">
+        </label>
+        <button type="button" id="folder-save" class="primary">Save folder</button>
+        <button type="button" id="folder-cancel">Cancel</button>
+      </div>
+      <div id="tree" class="tree"></div>
+      <p id="tree-empty" class="hint" hidden>No files yet. Every Excel file you download above is also saved here.</p>
+    </section>
+
+    <section class="panel block no-print">
+      <h3>Holidays and no-class days</h3>
+      <p class="hint" style="margin-top: 4px">Students aren't marked absent on these days, or on weekends.</p>
+      <div id="holiday-form" class="field-row" style="margin: 18px 0" hidden>
+        <label>Date <input id="holiday-date" type="date"></label>
+        <label style="flex: 1; min-width: 240px">Name <input id="holiday-name" placeholder="e.g. All Saints' Day" maxlength="100"></label>
+        <button type="button" id="holiday-add">Add holiday</button>
+      </div>
+      <ul id="holidays" class="plain-list" style="margin-top: 14px"></ul>
     </section>
   </main>
   <script src="js/api.js"></script>

@@ -1,9 +1,11 @@
 // SMS text templates (Figure 4 of the design doc). Every text must fit in ONE credit:
 // at most 160 characters, using only plain SMS (GSM-7) characters, with no emoji or curly quotes.
 const config = require('../config');
-const { displayTime, displayDate } = require('../utils/time');
+const settings = require('./settings');
+const { displayTime, displayDate, clockLabel } = require('../utils/time');
 
-const sender = config.sms.senderName;
+// The name at the start of every text, e.g. "BCNHS" (set with the SMS provider on the dashboard).
+const senderName = () => settings.sms().senderName;
 const FOOTER = ' Automated message, do not reply.';
 
 // Letters, digits, common punctuation, and the accented letters in the GSM-7 alphabet (like ñ).
@@ -27,9 +29,9 @@ function firstThatFits(...versions) {
 // One attendance text: "BCNHS: <name> (<class>) <event> Automated message, do not reply."
 function attendanceText(name, classLabel, event) {
   return firstThatFits(
-    `${sender}: ${name} (${classLabel}) ${event}${FOOTER}`,
-    `${sender}: ${name} (${classLabel}) ${event}`,
-    `${sender}: ${name} ${event}`,
+    `${senderName()}: ${name} (${classLabel}) ${event}${FOOTER}`,
+    `${senderName()}: ${name} (${classLabel}) ${event}`,
+    `${senderName()}: ${name} ${event}`,
   );
 }
 
@@ -45,9 +47,39 @@ function timeOut(name, classLabel, date) {
   return attendanceText(name, classLabel, `left school ${at(date)}`);
 }
 
-// "... came back LATE from lunch at 1:15 PM on Oct 7. ..."
+// The late-from-lunch text can be changed on Lunch and SMS settings. The words in brackets are
+// filled in for each student.
+const LUNCH_LATE_WORDS = {
+  'student name': (v) => v.name,
+  section: (v) => v.classLabel,
+  time: (v) => displayTime(v.date),
+  date: (v) => displayDate(v.date),
+  cutoff: () => clockLabel(config.schedule.lunchEnd),
+};
+
+function defaultLunchLateText() {
+  return `${senderName()}: [Student name] ([section]) came back LATE from lunch at [time], after the [cutoff] cutoff.${FOOTER}`;
+}
+
+// The words in brackets that aren't known, e.g. "[Name]" -> ['Name'].
+function unknownWords(template) {
+  return [...template.matchAll(/\[([^\]]*)\]/g)].map((m) => m[1]).filter((w) => !(w.trim().toLowerCase() in LUNCH_LATE_WORDS));
+}
+
+function fillLunchLate(template, values) {
+  return template.replace(/\[([^\]]*)\]/g, (whole, word) => LUNCH_LATE_WORDS[word.trim().toLowerCase()]?.(values) ?? whole);
+}
+
+// "BCNHS: Juan Dela Cruz (Grade 11 - STEM A) came back LATE from lunch at 1:15 PM, after the 1:00 PM cutoff. ..."
+// If the school's text doesn't fit in one credit (a long name), a shorter built-in text is used.
 function lunchLate(name, classLabel, date) {
-  return attendanceText(name, classLabel, `came back LATE from lunch ${at(date)}`);
+  const values = { name, classLabel, date };
+  return firstThatFits(
+    fillLunchLate(settings.get('lunchLateText') ?? defaultLunchLateText(), values),
+    fillLunchLate(defaultLunchLateText(), values),
+    `${senderName()}: ${name} (${classLabel}) came back LATE from lunch ${at(date)}`,
+    `${senderName()}: ${name} came back LATE from lunch ${at(date)}`,
+  );
 }
 
 // "... left school EARLY at 10:15 AM on Oct 7. ..."
@@ -65,7 +97,10 @@ function forTap(kind, name, classLabel, date, isLate) {
 }
 
 function verificationCode(code) {
-  return check(`${sender}: Your Tap-Tap Mo verification code is ${code}. Give it only to your child's adviser or the school staff.`);
+  return check(`${senderName()}: Your Tap-Tap Mo verification code is ${code}. Give it only to your child's adviser or the school staff.`);
 }
 
-module.exports = { forTap, timeIn, timeOut, lunchLate, earlyOut, verificationCode, fitsOneCredit };
+module.exports = {
+  forTap, timeIn, timeOut, lunchLate, earlyOut, verificationCode, fitsOneCredit,
+  defaultLunchLateText, fillLunchLate, unknownWords, PLAIN_SMS,
+};

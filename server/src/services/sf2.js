@@ -74,7 +74,8 @@ function sheetName(label, used) {
   return name;
 }
 
-function addSheet(workbook, name, cls, month, days, attended, today) {
+// groups: which sexes this sheet lists, [[sex, title], ...] (all three, or one for a Male or Female sheet)
+function addSheet(workbook, name, cls, month, days, attended, today, groups = SEX_GROUPS) {
   const ws = workbook.addWorksheet(name, {
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 },
     views: [{ state: 'frozen', xSplit: 2, ySplit: 6 }],
@@ -100,7 +101,8 @@ function addSheet(workbook, name, cls, month, days, attended, today) {
   ws.mergeCells(2, 1, 2, remarksCol);
   ws.getCell(2, 1).value = `School: ${config.schoolName}`;
   ws.mergeCells(3, 1, 3, remarksCol);
-  ws.getCell(3, 1).value = `Month: ${monthName}    Grade level: ${cls.gradeLevel}    Strand and section: ${cls.strand} ${cls.section}`;
+  ws.getCell(3, 1).value = `Month: ${monthName}    Grade level: ${cls.gradeLevel}    Strand and section: ${cls.strand} ${cls.section}`
+    + (groups.length === 1 ? `    Learners: ${groups[0][1].toLowerCase()}` : '');
 
   // Two header rows: day of the month, then the weekday
   const header1 = ws.getRow(5);
@@ -146,9 +148,9 @@ function addSheet(workbook, name, cls, month, days, attended, today) {
   };
 
   const combined = { present: days.map(() => 0), absent: 0, tardy: 0 };
-  for (const [sex, title] of SEX_GROUPS) {
+  for (const [sex, title] of groups) {
     const group = cls.students.filter((s) => (s.sex ?? null) === sex);
-    if (!group.length && sex === null) continue; // only show "not specified" when needed
+    if (!group.length && sex === null && groups.length > 1) continue; // only show "not specified" when needed
     const groupRow = ws.getRow(rowNo++);
     groupRow.getCell(2).value = title;
     for (let c = 1; c <= remarksCol; c++) {
@@ -187,7 +189,9 @@ function addSheet(workbook, name, cls, month, days, attended, today) {
     combined.absent += totals.absent;
     combined.tardy += totals.tardy;
   }
-  totalRow('COMBINED | TOTAL present per day', combined.present.map((n, i) => (days[i].schoolDay && days[i].date <= today ? n : '')), combined.absent, combined.tardy);
+  if (groups.length > 1) {
+    totalRow('COMBINED | TOTAL present per day', combined.present.map((n, i) => (days[i].schoolDay && days[i].date <= today ? n : '')), combined.absent, combined.tardy);
+  }
 
   rowNo++;
   ws.mergeCells(rowNo, 1, rowNo, remarksCol);
@@ -196,21 +200,48 @@ function addSheet(workbook, name, cls, month, days, attended, today) {
   ws.getCell(rowNo, 1).font = { italic: true, size: 9 };
 }
 
+// The sexes that get their own sheet when boys and girls are separated: Male, Female, and
+// "Not specified" only for a section that has students without their sex set.
+function separateGroups(students) {
+  return SEX_GROUPS.filter(([sex]) => sex !== null || students.some((s) => !s.sex));
+}
+
+// "Male" for one section, "G11 STEM A Male" when the file has several sections
+const groupSheetLabel = (label, title, oneClass) => {
+  const sex = title.charAt(0) + title.slice(1).toLowerCase();
+  return oneClass ? sex : `${label} ${sex}`;
+};
+
 // Builds the workbook. classFilter: { gradeLevel, strand, section } (empty = every section).
-async function buildSf2(month, classFilter = {}) {
+// separate: true gives each section a Male and a Female sheet instead of one sheet with both.
+async function buildSf2(month, classFilter = {}, { separate = false } = {}) {
   const dates = datesOfMonth(month).filter(isWeekday);
   const days = dates.map((date) => ({ date, ...schoolDayInfo(date) }));
   const today = schoolDate();
   const classes = studentsByClass(classFilter, dates.at(-1));
   const attended = attendance(month);
 
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Tap-Tap Mo';
-  workbook.created = new Date();
+  const workbook = newWorkbook();
   const used = new Set();
-  for (const [label, cls] of classes) addSheet(workbook, sheetName(label, used), cls, month, days, attended, today);
+  for (const [label, cls] of classes) {
+    if (!separate) {
+      addSheet(workbook, sheetName(label, used), cls, month, days, attended, today);
+      continue;
+    }
+    for (const group of separateGroups(cls.students)) {
+      const name = sheetName(groupSheetLabel(label, group[1], classes.size === 1), used);
+      addSheet(workbook, name, cls, month, days, attended, today, [group]);
+    }
+  }
   if (!classes.size) workbook.addWorksheet('No students').getCell('A1').value = 'No students match this filter.';
   return workbook.xlsx.writeBuffer();
 }
 
-module.exports = { buildSf2 };
+function newWorkbook() {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Tap-Tap Mo';
+  workbook.created = new Date();
+  return workbook;
+}
+
+module.exports = { buildSf2, newWorkbook, sheetName, separateGroups, groupSheetLabel, SEX_GROUPS, COLORS, border };

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log by LRN | Tap-Tap Mo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- filled in by js/nav.js -->
+  <main>
+    <h2>Log by LRN</h2>
+    <p class="subtitle">For a student without their card. Typing the LRN logs them in or out, just like a tap, and texts the parent the same way.</p>
+
+    <section class="panel block">
+      <form id="lrn-form">
+        <label for="lrn">Learner Reference Number (LRN)</label>
+        <div class="lrn-entry">
+          <input id="lrn" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="12 digits" autofocus>
+          <button type="submit" class="primary">Log attendance</button>
+        </div>
+      </form>
+      <div id="result" class="result-card" role="status" hidden></div>
+      <p class="hint">Check that it's really the student (ask for their name or school ID). Entries made here are marked
+        "Office" and "LRN" on the dashboard and in reports.</p>
+    </section>
+
+    <section class="panel block">
+      <div class="card-head">
+        <div>
+          <h3>Logged by LRN today</h3>
+          <p>Typed here, or at a gate's LRN box by students without their card.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Student</th><th>LRN</th><th>Section</th><th>Logged as</th><th>Where</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/log-lrn.js"></script>
+</body>
+</html>

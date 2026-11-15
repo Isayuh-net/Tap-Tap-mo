@@ -2,6 +2,7 @@
 const $ = (id) => document.getElementById(id);
 const REFRESH_MS = 15 * 1000;
 const number = (n) => n.toLocaleString('en-US');
+const plural = (n, word) => `${number(n)} ${word}${n === 1 ? '' : 's'}`;
 
 // Text status of a tap -> [badge class, label, note]
 const TEXT_STATUS = {
@@ -14,10 +15,11 @@ const TEXT_STATUS = {
   'not-needed': ['waiting', 'No text', 'Lunch taps are not texted'],
 };
 
-function cell(tr, content) {
+function cell(tr, content, className) {
   const td = document.createElement('td');
   if (content instanceof Node) td.append(content);
   else td.textContent = content ?? '';
+  if (className) td.className = className;
   tr.append(td);
   return td;
 }
@@ -34,16 +36,15 @@ async function loadClasses() {
   showEnrollment();
 }
 
-// "Enrolled: 1,400 students (712 male, 688 female) in 32 sections", for the class filter's choice.
+// "182 enrolled: 86 male, 94 female" for the class filter's choice.
 function showEnrollment() {
   const chosen = $('class').value
     ? classList.filter((c) => JSON.stringify([c.gradeLevel, c.strand, c.section]) === $('class').value)
     : classList;
   const sum = (key) => chosen.reduce((total, c) => total + c[key], 0);
-  const where = $('class').value ? '' : ` in ${chosen.length} section${chosen.length === 1 ? '' : 's'}`;
-  const notSet = sum('sexNotSet') ? `, ${sum('sexNotSet')} not set` : '';
-  $('enrollment').textContent = `Enrolled: ${number(sum('students'))} students (${number(sum('male'))} male, `
-    + `${number(sum('female'))} female${notSet})${where}`;
+  const notSet = sum('sexNotSet') ? `, ${number(sum('sexNotSet'))} not set` : '';
+  const where = $('class').value ? '' : ` in ${plural(chosen.length, 'section')}`;
+  $('enrollment').textContent = `${number(sum('students'))} enrolled${where}: ${number(sum('male'))} male, ${number(sum('female'))} female${notSet}`;
 }
 
 function filters() {
@@ -61,33 +62,35 @@ function filters() {
 async function loadAttendance() {
   const data = await api(`/attendance/today?${filters()}`);
   const day = new Date(`${data.date}T00:00:00`);
-  $('today').textContent = `${day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} | Senior High School`;
+  $('today').textContent = `${day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}, Senior High School`;
 
-  $('present').textContent = number(data.present);
-  $('present-note').textContent = `of ${number(data.students)} students`;
+  $('on-time').textContent = number(data.present - data.late);
+  $('on-time-note').textContent = `of ${plural(data.students, 'student')}`;
   $('late').textContent = number(data.late);
-  const lateExtras = [
-    data.lateFromLunch && `${data.lateFromLunch} late back from lunch`,
-    data.leftEarly && `${data.leftEarly} left early`,
-  ].filter(Boolean);
-  $('late-note').textContent = `arrived after ${data.lateAfter}${lateExtras.length ? ` | ${lateExtras.join(' | ')}` : ''}`;
-  $('absent').textContent = number(data.absent);
+  $('late-note').textContent = `tapped in after ${data.lateAfter}`;
+  $('absent').textContent = data.schoolDay ? number(data.absent) : '-';
+  $('late-lunch').textContent = number(data.lateFromLunch);
+  $('late-lunch-note').textContent = `back after ${data.lunchEnd}, parents texted`;
+  $('footnote').textContent = `Lunch taps from ${data.lunchStart} don't text parents. A tap back in after ${data.lunchEnd} texts the parent. `
+    + `Leaving before ${data.dismissal} is an early out, also texted.`;
 
   const notices = [];
-  if (!data.schoolDay) notices.push(data.holiday ? `Today is a holiday: ${data.holiday}.` : 'Today is a weekend, so absences are not counted.');
-  if (data.unregisteredTaps) notices.push(`${data.unregisteredTaps} tap(s) today from unregistered cards.`);
+  if (!data.schoolDay) notices.push(data.holiday ? `Today is a holiday: ${data.holiday}. Nobody is marked absent.` : 'No classes today (weekend), so nobody is marked absent.');
+  if (data.leftEarly) notices.push(`${plural(data.leftEarly, 'student')} left early today.`);
+  if (data.unregisteredTaps) notices.push(`${plural(data.unregisteredTaps, 'tap')} today from cards that aren't registered.`);
   showMessage($('notice'), 'info', notices.join(' '));
 
   $('empty').hidden = data.taps.length > 0;
   $('rows').replaceChildren(...data.taps.map((t) => {
     const tr = document.createElement('tr');
     cell(tr, t.time);
-    cell(tr, t.name);
+    cell(tr, t.name, 'strong');
     cell(tr, t.classLabel);
     const type = cell(tr, t.type);
-    if (t.method === 'lrn') type.append(' ', badge('waiting', 'LRN')); // typed at the gate, no card
-    cell(tr, t.isLate ? badge('late', 'Late') : t.type === 'Early out' ? badge('late', 'Early') : 'No');
-    cell(tr, t.parentMobile ?? 'None');
+    if (t.isLate) type.append(' ', badge('late', 'Late'));
+    if (t.type === 'Early out') type.append(' ', badge('late', 'Early'));
+    if (t.method === 'lrn') type.append(' ', badge('waiting', 'LRN')); // typed, no card
+    cell(tr, t.parentMobile ?? 'None', 'mono');
     const [kind, label, note] = TEXT_STATUS[t.textStatus] ?? ['waiting', t.textStatus, ''];
     const td = cell(tr, badge(kind, label));
     const detail = t.textStatus === 'failed' ? t.textError : note;
@@ -96,18 +99,21 @@ async function loadAttendance() {
   }));
 }
 
+const PROVIDER_NAMES = { mock: 'Test mode', semaphore: 'Semaphore', castph: 'Cast PH' };
+
 async function loadStats() {
   const stats = await api('/sms/stats');
   const { online } = stats.internet;
-  $('internet').textContent = online === null ? 'Internet: checking...' : `Internet: ${online ? 'online' : 'offline'}`;
-  $('internet').className = `chip ${online === false ? 'bad' : online ? 'good' : ''}`;
-  $('credits').textContent = stats.credits === null
-    ? `SMS credits: not available${stats.provider === 'mock' ? ' (test mode)' : ''}`
-    : `SMS credits: ${number(stats.credits)}`;
+  $('internet').textContent = online === null ? 'Internet: checking' : `Internet ${online ? 'online' : 'offline'}`;
+  $('internet').className = `status-pill ${online === false ? 'bad' : online ? 'live' : 'neutral'}`;
 
-  $('texts').textContent = number(stats.today.sent);
-  $('texts-note').textContent = `${stats.today.queued} queued | ${stats.today.failed} failed`
-    + (stats.waiting > stats.today.queued ? ` | ${stats.waiting} waiting in total` : '');
+  const parts = [PROVIDER_NAMES[stats.provider] ?? stats.provider];
+  if (stats.credits !== null) parts.push(`${number(stats.credits)} credits`);
+  parts.push(`${plural(stats.today.sent, 'text')} sent today`);
+  if (stats.today.queued) parts.push(`${number(stats.today.queued)} waiting`);
+  $('sms-status').textContent = parts.join(' · ');
+  $('sms-status').className = `status-pill ${stats.provider === 'mock' ? '' : 'live'}`;
+  $('sms-status').title = stats.provider === 'mock' ? 'Test mode: texts are printed in the server window, not sent' : '';
   return stats;
 }
 
@@ -119,13 +125,13 @@ async function loadFailed(stats, user) {
   }
   const { texts } = await api('/sms?status=failed');
   $('failed-box').hidden = false;
-  $('failed-title').textContent = `${stats.failedTotal} text${stats.failedTotal === 1 ? '' : 's'} failed`;
+  $('failed-title').textContent = `${plural(stats.failedTotal, 'text')} failed`;
   $('failed-rows').replaceChildren(...texts.slice(0, 5).map((m) => {
     const tr = document.createElement('tr');
     cell(tr, m.createdAt);
-    cell(tr, m.name ?? '');
+    cell(tr, m.name ?? '', 'strong');
     cell(tr, m.kindLabel);
-    cell(tr, m.toMobile);
+    cell(tr, m.toMobile, 'mono');
     cell(tr, m.lastError ?? 'Not delivered');
     return tr;
   }));
@@ -135,8 +141,8 @@ async function loadBackup(user) {
   if (user.role !== 'admin') return;
   const { latest } = await api('/backups');
   $('backup').hidden = false;
-  $('backup').textContent = latest ? `Last backup: ${latest.when}` : 'No backup yet';
-  $('backup').className = `chip ${latest?.recent ? 'good' : 'bad'}`;
+  $('backup').textContent = latest ? `Last backup ${latest.when}` : 'No backup yet';
+  $('backup').className = `status-pill ${latest?.recent ? 'live' : 'bad'}`;
 }
 
 async function refresh() {

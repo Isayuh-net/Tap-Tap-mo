@@ -3,7 +3,9 @@ const express = require('express');
 const requireLogin = require('../middleware/requireLogin');
 const todo = require('../middleware/notImplemented');
 const students = require('../services/students');
-const { importStudents } = require('../services/studentImport');
+const photos = require('../services/photos');
+const { importStudents, xlsxToCsv } = require('../services/studentImport');
+const { studentListFile } = require('../services/excelExports');
 const { STRANDS } = require('../utils/strands');
 
 const router = express.Router();
@@ -13,6 +15,21 @@ router.get('/strands', (req, res) => res.json({ strands: STRANDS }));  // for th
 
 // Every class with how many students still need a card. Reply: { classes: [...] }
 router.get('/classes', (req, res) => res.json({ classes: students.classes() }));
+
+// How many students a section should have. Body: { gradeLevel, strand, section, expected } (null clears it)
+router.put('/section-size', requireLogin('admin', 'staff'), (req, res) => {
+  res.json(students.setSectionSize(req.body ?? {}));
+});
+
+// A section's student list as Excel, with Male and Female sheets. ?gradeLevel=&strand=&section=
+// It has parents' full numbers, so only admin and staff can download it.
+router.get('/export', requireLogin('admin', 'staff'), async (req, res) => {
+  const { gradeLevel, strand, section } = req.query;
+  const { buffer, fileName } = await studentListFile({ gradeLevel, strand, section });
+  res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.set('Content-Disposition', `attachment; filename="${fileName.replace(/[^\w ,.()-]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+  res.send(Buffer.from(buffer));
+});
 
 // Active students. Filters: ?gradeLevel=11&strand=STEM&section=A&sex=F&q=name, LRN, school ID or card no.
 router.get('/', (req, res) => {
@@ -32,6 +49,11 @@ router.post('/import', requireLogin('admin', 'staff'), (req, res) => {
   res.json(importStudents(req.body?.csv, { commit: req.body?.commit === true }));
 });
 
+// An Excel file to import, turned into CSV text first. Body: { xlsx: base64 } -> { csv }
+router.post('/import/convert', requireLogin('admin', 'staff'), async (req, res) => {
+  res.json({ csv: await xlsxToCsv(req.body?.xlsx) });
+});
+
 // Edit details (same body without uid). Changing the mobile number resets verification.
 router.put('/:id', requireLogin('admin', 'staff'), (req, res) => {
   res.json(students.update(Number(req.params.id), req.body ?? {}));
@@ -43,5 +65,22 @@ router.patch('/:id/mobile', requireLogin('admin', 'staff'), (req, res) => {
 });
 
 router.patch('/:id/active', requireLogin('admin'), todo);  // deactivate when a student leaves
+
+// The student's photo, for the dashboard. ?v=photoVersion in the address lets the browser keep it.
+router.get('/:id/photo', (req, res) => {
+  const file = photos.filePath(Number(req.params.id));
+  if (!file) return res.status(404).json({ error: 'No photo' });
+  res.set('Cache-Control', 'private, max-age=31536000, immutable');
+  res.sendFile(file);
+});
+
+// Upload or replace a photo. Body: the JPEG itself (Content-Type: image/jpeg). Reply: { photoVersion }
+router.put('/:id/photo', requireLogin('admin', 'staff'),
+  express.raw({ type: 'image/jpeg', limit: photos.MAX_BYTES }),
+  (req, res) => res.json(photos.save(Number(req.params.id), req.body)));
+
+router.delete('/:id/photo', requireLogin('admin', 'staff'), (req, res) => {
+  res.json(photos.remove(Number(req.params.id)));
+});
 
 module.exports = router;

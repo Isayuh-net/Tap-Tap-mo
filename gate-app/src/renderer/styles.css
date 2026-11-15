@@ -1,42 +1,134 @@
-/* Gate screen states from Figure 3 of the design doc. */
-html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: #fff; cursor: none; }
+/* Gate screen states from Figure 3 of the design doc, on the school's background design.
+   Sizes use cqh (1% of the background's height), so the layout scales with any screen. */
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; cursor: none; }
+
+/* State colors: the frame around the screen, the photo's outline and the label all use them */
+#screen         { --state: transparent; }
+#screen.ok      { --state: #1e8a3c; }
+#screen.offline { --state: #1e8a3c; }
+#screen.warn    { --state: #b86e00; } /* late, or leaving early */
+#screen.error   { --state: #b3261e; }
+
+/* Squarer screens (4:3, 5:4) have space above and below the background: the same maroon as its edges */
+body { background: linear-gradient(to right, #440110, #5a0110 60%, #730110); }
 
 #screen {
+  position: relative;
   height: 100%;
+  overflow: hidden;
+}
+/* A thick border in the state color around the whole screen, seen from across the gate */
+#screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1.4vmin var(--state);
+  pointer-events: none;
+  transition: box-shadow 0.15s;
+}
+
+/* The background design (708 x 453) fills the whole screen width, never stretched. It is 2% wider
+   than the screen so its rounded white corners are off screen. On wide screens (16:9) the part that
+   doesn't fit is cut mostly from the bottom wave, so the logo at the top stays whole. Everything on it
+   is placed in % of this box, so the photo stays inside the box drawn on the background. */
+#stage {
+  --height: calc(102vw * 453 / 708);
+  position: absolute;
+  left: -1vw;
+  width: 102vw;
+  height: var(--height);
+  top: calc((100vh - var(--height)) * 0.2); /* cut 20% of the overflow from the top, 80% from the bottom */
+  background: url(background.jpg) center / 100% 100% no-repeat;
+  container-type: size;
+  color: #2a0510;
+}
+/* Squarer screens: the background is shorter than the screen, so center it */
+@media (max-aspect-ratio: 708 / 462) {
+  #stage { top: calc((100vh - var(--height)) / 2); }
+}
+
+/* The photo sits exactly inside the box drawn on the background (x 61-263, y 137-301 of 708 x 453) */
+#photo-frame {
+  position: absolute;
+  left: 8.616%;
+  top: 30.243%;
+  width: 28.672%;
+  height: 36.424%;
+  border-radius: 1.2cqh;
+  overflow: hidden;
+  background: #f4f1f2;
+  outline: 1.2cqh solid var(--state);
+  outline-offset: 0.6cqh; /* just outside the drawn border */
+  transition: outline-color 0.15s;
+}
+#photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 25%; /* keep the face in view when the photo is cropped */
+}
+
+/* No photo: a tap prompt while waiting, a person outline for a student without a photo, "?" for an unknown card */
+#photo-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #7a0f2a; }
+#photo:not([hidden]) + #photo-empty { display: none; }
+#photo-empty > div { display: none; }
+#photo-empty svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+#screen.waiting #photo-empty .when-waiting { display: flex; flex-direction: column; align-items: center; gap: 1.5cqh; }
+#screen.waiting #photo-empty .when-waiting svg { width: 12cqh; height: 12cqh; }
+#screen.waiting #photo-empty .when-waiting span { font-size: 3.4cqh; font-weight: 700; letter-spacing: 0.04em; }
+#screen:not(.waiting):not(.error) #photo-empty .when-no-photo { display: block; }
+#photo-empty .when-no-photo svg { width: 22cqh; height: 22cqh; opacity: 0.45; }
+#screen.error #photo-empty .when-unknown { display: block; font-size: 22cqh; font-weight: 800; color: #b3261e; line-height: 1; }
+
+/* Name and details, to the right of the photo, between the header and the bottom wave */
+#panel {
+  position: absolute;
+  left: 42%;
+  right: 3.5%;
+  top: 25%;
+  bottom: 16%;
   display: flex;
   flex-direction: column;
-  text-align: center;
-  transition: background 0.15s;
+  justify-content: center;
+  gap: 3cqh;
 }
-#screen.waiting { background: #2b2b2b; }
-#screen.ok      { background: #1e8a3c; }
-#screen.offline { background: #1e8a3c; }
-#screen.warn    { background: #b86e00; } /* late, or leaving early */
-#screen.error   { background: #b3261e; }
+#info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.4cqh;
+  overflow-wrap: anywhere;
+  text-shadow: 0 0 0.8cqh #fff, 0 0 1.6cqh #fff; /* stays readable over the building */
+}
+#info > div:empty { display: none; }
 
-#banner { display: none; padding: 12px; font-weight: bold; font-size: 1.6rem; background: #f0a030; color: #222; }
-#screen.offline #banner { display: block; }
+#banner, #label {
+  padding: 0.8cqh 2.2cqh;
+  border-radius: 999px;
+  font-size: 4.2cqh;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-shadow: none;
+}
+#banner { background: #f0a030; color: #2a0510; } /* offline: tap saved */
+#label  { background: var(--state); color: #fff; }
 
-#content { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
-#clock  { display: none; font-size: 2.5rem; opacity: 0.8; }
+#clock  { display: none; font-size: 6cqh; font-weight: 600; color: #7a0f2a; font-variant-numeric: tabular-nums; }
 #screen.waiting #clock { display: block; }
-#label  { font-size: 2rem; font-weight: bold; letter-spacing: 0.05em; }
-#name   { font-size: 4.5rem; font-weight: bold; }
-#strand { font-size: 3rem; font-weight: bold; opacity: 0.95; }
-#detail { font-size: 2rem; opacity: 0.9; }
-#note   { font-size: 1.5rem; opacity: 0.8; }
-
-html, body { overflow: hidden; }
+#name   { font-size: 7.5cqh; font-weight: 800; line-height: 1.05; }
+#strand { font-size: 5cqh; font-weight: 700; color: #7a0f2a; }
+#detail { font-size: 3.6cqh; font-weight: 600; color: #4a3a3f; }
+#note   { font-size: 3cqh; color: #4a3a3f; }
 
 /* The box the card reader types into, and where students without their ID type their LRN */
-#lrn-entry { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-bottom: 48px; }
-#lrn-entry label { font-size: 1.4rem; opacity: 0.85; }
+#lrn-entry { display: flex; flex-direction: column; align-items: flex-start; gap: 1.2cqh; }
+#lrn-entry label { font-size: 2.6cqh; font-weight: 600; color: #4a3a3f; text-shadow: 0 0 0.8cqh #fff; }
 #scan {
-  width: 440px; max-width: 80vw; padding: 10px 14px;
-  font: 2rem ui-monospace, monospace; letter-spacing: 0.1em; text-align: center;
-  color: #fff; caret-color: #fff; background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.6); border-radius: 10px; outline: none;
+  width: 62cqh; max-width: 100%; box-sizing: border-box; padding: 1cqh 2cqh;
+  font: 4.4cqh ui-monospace, monospace; letter-spacing: 0.1em; text-align: center;
+  color: #2a0510; caret-color: #7a0f2a; background: rgba(255, 255, 255, 0.85);
+  border: 0.4cqh solid #7a0f2a; border-radius: 1.6cqh; outline: none;
 }
-#scan::placeholder { color: rgba(255, 255, 255, 0.45); }
-/* On result screens the box is invisible but keeps the cursor, so the next card still reads */
-#screen:not(.waiting) #lrn-entry { opacity: 0; }
+#scan::placeholder { color: rgba(122, 15, 42, 0.4); }
+/* On result screens the box is invisible and takes no space, but keeps the cursor, so the next card still reads */
+#screen:not(.waiting) #lrn-entry { position: absolute; opacity: 0; pointer-events: none; }

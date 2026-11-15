@@ -3,7 +3,8 @@
 const jsonFile = require('./jsonFile');
 
 const FILE = 'roster.json';
-let roster = null; // { cards: { [uid]: { name, gradeSection } }, lrns: { [lrn]: { name, gradeSection } } }
+// { cards: { [uid]: student }, lrns: { [lrn]: student } }, student = { name, gradeSection, schoolId, studentId, photoVersion }
+let roster = null;
 
 function load() {
   if (!roster) {

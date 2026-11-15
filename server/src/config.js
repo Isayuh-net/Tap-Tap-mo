@@ -20,6 +20,10 @@ function hhmmss(time) {
 module.exports = {
   port: Number(process.env.PORT) || 3000,
   dbPath: path.resolve(__dirname, '..', process.env.DB_PATH || 'data/tap-tap-mo.db'),
+  photosDir: path.resolve(__dirname, '..', process.env.PHOTOS_DIR || 'data/photos'), // one JPEG per student
+  // Excel files downloaded on Reports and files are also saved here (can be changed on that page).
+  reportsDir: path.resolve(__dirname, '..', process.env.REPORTS_DIR || 'data/reports'),
+  templatesDir: path.resolve(__dirname, '..', process.env.TEMPLATES_DIR || 'data/templates'), // school templates
   timeZone: process.env.SCHOOL_TZ || 'Asia/Manila',
   schoolName: process.env.SCHOOL_NAME || 'Baguio City National High School - Senior High School', // on SF2 downloads
   // The school day (24-hour times). See services/attendance.js for how taps are read.

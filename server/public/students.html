@@ -7,47 +7,61 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <nav><h1>Tap-Tap Mo</h1></nav> <!-- links are added by js/nav.js -->
+  <nav><h1>Tap-Tap Mo</h1></nav> <!-- filled in by js/nav.js -->
   <main>
-    <h2>Students</h2>
-    <p class="subtitle">Everyone registered in the system, by section and by sex.</p>
+    <div class="page-head">
+      <div>
+        <h2>Students</h2>
+        <p id="overview" class="subtitle">&nbsp;</p>
+      </div>
+      <div class="actions" style="margin: 0">
+        <a class="button" href="/api/templates/students">Download template</a>
+        <a id="import-link" class="button" href="import.html" hidden>Import filled template</a>
+      </div>
+    </div>
 
-    <div class="stat-tiles">
-      <div class="stat"><div class="stat-label">Total students</div><div id="total" class="stat-value">-</div><div id="sections" class="stat-note"></div></div>
-      <div class="stat"><div class="stat-label">Male</div><div id="male" class="stat-value">-</div></div>
-      <div class="stat"><div class="stat-label">Female</div><div id="female" class="stat-value">-</div></div>
-      <div class="stat"><div class="stat-label">Sex not set</div><div id="not-set" class="stat-value">-</div><div class="stat-note">add it on Register card</div></div>
+    <div class="toolbar" style="align-items: flex-start; margin-bottom: 4px">
+      <div id="sections" class="pills" aria-label="Sections" style="flex: 1"></div>
+      <div class="search-box">
+        <input id="search" type="search" placeholder="Search all students" title="Name, LRN, ID number or card number" aria-label="Search all students">
+      </div>
     </div>
 
     <section class="panel block">
-      <h3>Students per section</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Section</th><th>Male</th><th>Female</th><th>Not set</th><th>Total</th><th>Without card</th><th>Number not verified</th></tr></thead>
-          <tbody id="class-rows"></tbody>
-        </table>
+      <div class="card-head">
+        <div>
+          <h3 id="section-title">&nbsp;</h3>
+          <p id="section-counts" class="counts-line"></p>
+        </div>
+        <div id="excel-box" style="text-align: right" hidden>
+          <button type="button" id="download-excel" class="primary">Download Excel</button>
+          <p class="hint">Separate Male and Female sheets</p>
+        </div>
       </div>
-    </section>
 
-    <section class="panel block">
-      <h3>Student list</h3>
-      <div class="filters">
-        <input id="search" type="search" placeholder="Name, LRN, school ID or card no.">
-        <select id="class"><option value="">All sections</option></select>
-        <select id="sex">
-          <option value="">Male and female</option>
-          <option value="M">Male</option>
-          <option value="F">Female</option>
-        </select>
+      <div id="size-box" class="inset pink size-box">
+        <label>Number of students in this section
+          <input id="expected" type="number" min="1" max="200" inputmode="numeric" placeholder="e.g. 40">
+        </label>
+        <button type="button" id="repopulate">Repopulate list</button>
+        <p id="size-status" class="size-status"></p>
       </div>
-      <p id="count" class="hint"></p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Card no.</th><th>Name</th><th>Sex</th><th>Section</th><th>LRN</th><th>School ID</th><th>Parent mobile</th><th></th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table>
+
+      <div class="toolbar">
+        <div id="sex-filter" class="segmented" role="group" aria-label="Show">
+          <button type="button" data-sex="all" class="active">Male and female</button>
+          <button type="button" data-sex="M">Male</button>
+          <button type="button" data-sex="F">Female</button>
+        </div>
+        <p class="hint" style="margin: 0">Students without a card number can still log in by LRN.</p>
       </div>
-      <p class="hint">To change a student's details, tap their card on the Register card page (or click Edit).</p>
+
+      <p id="message" class="message" role="status" style="margin-top: 16px"></p>
+      <!-- One file picker for every row's photo button -->
+      <input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+      <div id="groups"></div>
+      <p class="hint" style="margin-top: 22px">Edit opens the student on Register card. The photo shows on the gate screen
+        when the student taps: use a clear, front-facing photo of their face.</p>
     </section>
   </main>
   <script src="js/api.js"></script>

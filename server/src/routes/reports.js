@@ -1,10 +1,13 @@
 // Attendance reports and export. (US-13)
 // Add &format=csv to download the report as a CSV file that opens in Excel.
+const path = require('node:path');
 const express = require('express');
 const requireLogin = require('../middleware/requireLogin');
 const reports = require('../services/attendanceReports');
+const reportFiles = require('../services/reportFiles');
 const { toCsv } = require('../utils/csvWrite');
 const { buildSf2 } = require('../services/sf2');
+const { attendanceFile } = require('../services/excelExports');
 const { schoolDate, isDateString } = require('../utils/time');
 const { httpError } = require('../utils/httpError');
 
@@ -70,6 +73,44 @@ router.get('/monthly', (req, res) => {
     { header: 'Attendance %', value: (r) => r.percent },
   ], report.rows));
 });
+
+// "Grade 11 - STEM A, November 2026.xlsx" as a download, with a plain-letters name for old browsers
+function sendXlsx(res, fileName, buffer) {
+  res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.set('Content-Disposition', `attachment; filename="${fileName.replace(/[^\w ,.()-]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+  res.send(Buffer.from(buffer));
+}
+
+// Attendance as Excel for Reports and files, also saved in the reports folder.
+// ?period=daily&date=YYYY-MM-DD or ?period=monthly&month=YYYY-MM, &gradeLevel=&strand=&section=,
+// &separate=1 for a Male and a Female sheet per section
+router.get('/excel', async (req, res) => {
+  const period = req.query.period === 'daily' ? 'daily' : 'monthly';
+  const date = req.query.date || schoolDate();
+  const month = req.query.month || schoolDate().slice(0, 7);
+  if (period === 'daily' && !isDateString(date)) throw httpError(400, 'Date must look like 2026-10-19.');
+  if (period === 'monthly' && !isDateString(`${month}-01`)) throw httpError(400, 'Month must look like 2026-10.');
+  const file = await attendanceFile({ period, date, month, filter: classFilter(req.query), separate: req.query.separate === '1' });
+  try {
+    res.set('X-Saved-To', encodeURIComponent(reportFiles.save(file, file.buffer)));
+  } catch (err) {
+    // The download still works; the page says the copy wasn't saved.
+    console.warn(`Report not saved in the reports folder: ${err.message}`);
+  }
+  sendXlsx(res, file.fileName, file.buffer);
+});
+
+// The saved files, by school year and section. Reply: { folder, years: [...] }
+router.get('/files', (req, res) => res.json(reportFiles.list()));
+
+// One saved file. ?path=School year 2026-2027/Grade 11 - STEM A/<file>.xlsx
+router.get('/files/open', (req, res) => {
+  const file = reportFiles.resolve(req.query.path);
+  res.download(file, path.basename(file));
+});
+
+// Body: { folder: 'C:\\Tap-Tap Mo\\Reports' }
+router.put('/folder', requireLogin('admin'), (req, res) => res.json(reportFiles.setFolder(req.body?.folder)));
 
 // Monthly attendance as an Excel file in the SF2 layout: one sheet per section, boys then girls.
 // ?month=YYYY-MM (default this month) &gradeLevel=&strand=&section= (default every section)

@@ -8,7 +8,7 @@
 const db = require('../db');
 const config = require('../config');
 const { classLabel } = require('../utils/classLabel');
-const { schoolDate, schoolTime, displayTime, clockLabel, datesOfMonth, weekDates, daysBefore } = require('../utils/time');
+const { schoolDate, schoolTime, displayTime, clockLabel, datesOfMonth, weekDates, daysBefore, schoolIso } = require('../utils/time');
 const { schoolDayInfo } = require('./schoolDays');
 const { MOVEMENTS } = require('./attendance');
 
@@ -89,6 +89,7 @@ function today(filters = {}) {
     date,
     ...schoolDayInfo(date),
     lateAfter: clockLabel(config.schedule.lateAfter),
+    lunchStart: clockLabel(config.schedule.lunchStart),
     lunchEnd: clockLabel(config.schedule.lunchEnd),
     dismissal: clockLabel(config.schedule.dismissal),
     students,
@@ -280,6 +281,7 @@ function averages(days) {
   const pct = (part, whole) => (whole ? Math.round((part / whole) * 1000) / 10 : null);
   return {
     schoolDays: counted.length,
+    arrivals: sum('present'),
     averageAttendance: pct(sum('present'), sum('enrolled')),
     tardinessRate: pct(sum('late'), sum('present')),
     lateArrivals: sum('late'),
@@ -316,6 +318,8 @@ function week(weekOf, filters = {}) {
     weekEnd: dates.at(-1),
     isThisWeek: weekDates(schoolDate())[0] === dates[0],
     classesStart: clockLabel(config.schedule.lateAfter),
+    lunchStart: clockLabel(config.schedule.lunchStart),
+    lunchEnd: clockLabel(config.schedule.lunchEnd),
     days,
     summary: averages(days),
     lastWeek: { averageAttendance: lastWeek.averageAttendance, tardinessRate: lastWeek.tardinessRate },
@@ -323,4 +327,45 @@ function week(weekOf, filters = {}) {
   };
 }
 
-module.exports = { today, daily, monthly, week };
+// What a tap was logged as, e.g. "Time in (late)"
+function loggedAs(result, isLate) {
+  return `${TYPE_LABELS[result]}${isLate ? ' (late)' : ''}`;
+}
+
+// Everyone logged by LRN today (typed at a gate, or by staff on Log by LRN), newest first.
+function lrnToday() {
+  return db.prepare(`
+    SELECT t.tapped_at, t.result, t.is_late, t.gate_id, s.full_name, s.lrn, s.grade_level, s.strand, s.section
+    FROM taps t JOIN students s ON s.id = t.student_id
+    WHERE t.school_date = ? AND t.method = 'lrn' AND t.result IN (${MOVEMENTS.map(() => '?').join(', ')})
+    ORDER BY t.tapped_at DESC
+  `).all(schoolDate(), ...MOVEMENTS).map((r) => ({
+    time: time(r.tapped_at),
+    name: r.full_name,
+    lrn: r.lrn,
+    classLabel: classLabel(r),
+    loggedAs: loggedAs(r.result, r.is_late),
+    where: r.gate_id === 'office' ? 'Office' : r.gate_id,
+  }));
+}
+
+// The attendance API: every time in and out on a day, naming the student by their school ID number.
+function records(date) {
+  return db.prepare(`
+    SELECT t.tapped_at, t.result, t.is_late, t.method, s.school_id, s.lrn, s.full_name, s.grade_level, s.strand, s.section
+    FROM taps t JOIN students s ON s.id = t.student_id
+    WHERE t.school_date = ? AND t.result IN (${MOVEMENTS.map(() => '?').join(', ')})
+    ORDER BY t.tapped_at
+  `).all(date, ...MOVEMENTS).map((r) => ({
+    id_number: r.school_id,
+    lrn: r.lrn,
+    name: r.full_name,
+    section: classLabel(r),
+    type: r.result,
+    late: Boolean(r.is_late),
+    method: r.method,
+    tapped_at: schoolIso(new Date(r.tapped_at)),
+  }));
+}
+
+module.exports = { today, daily, monthly, week, lrnToday, records, loggedAs };
