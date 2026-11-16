@@ -18,6 +18,21 @@ const KINDS = {
 const EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx', '.doc'];
 const MAX_BYTES = 10 * 1024 * 1024;
 
+// The first bytes of each kind of file, so a file that was only renamed (like a program saved
+// as "form.xlsx") is refused. New Office files are ZIP files; old ones share one signature.
+const SIGNATURES = {
+  '.xlsx': [0x50, 0x4b, 0x03, 0x04],
+  '.docx': [0x50, 0x4b, 0x03, 0x04],
+  '.xls': [0xd0, 0xcf, 0x11, 0xe0],
+  '.doc': [0xd0, 0xcf, 0x11, 0xe0],
+  '.pdf': [0x25, 0x50, 0x44, 0x46], // "%PDF"
+};
+
+function contentMatches(ext, data) {
+  if (ext === '.csv') return !data.subarray(0, 64 * 1024).includes(0); // plain text has no zero bytes
+  return SIGNATURES[ext].every((byte, i) => data[i] === byte);
+}
+
 function requireKind(kind) {
   if (!KINDS[kind]) throw httpError(404, 'Unknown template.');
 }
@@ -39,6 +54,7 @@ function save(kind, fileName, data) {
   if (!name || !EXTENSIONS.includes(ext)) throw httpError(400, `Upload an Excel, CSV, Word or PDF file (${EXTENSIONS.join(', ')}).`);
   if (!Buffer.isBuffer(data) || !data.length) throw httpError(400, 'Choose a file to upload.');
   if (data.length > MAX_BYTES) throw httpError(400, 'The file is too large (10 MB at most).');
+  if (!contentMatches(ext, data)) throw httpError(400, `That file isn't really a ${ext} file. Save it again from Excel, Word or a PDF tool.`);
 
   fs.mkdirSync(config.templatesDir, { recursive: true });
   const storedAs = `${kind}${ext}`;

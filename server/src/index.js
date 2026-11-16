@@ -7,6 +7,7 @@ require('./db'); // opens the database and creates the tables
 const smsQueue = require('./services/smsQueue');
 const internet = require('./services/internet');
 const backup = require('./services/backup');
+const rateLimit = require('./middleware/rateLimit');
 
 const app = express();
 app.disable('x-powered-by');
@@ -29,13 +30,24 @@ app.use((req, res, next) => {
   next();
 });
 
+// Each computer can make at most 600 dashboard API requests a minute (the dashboard itself makes
+// about 25). Gates are left out: they prove who they are with their gate key.
+app.use('/api', rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  message: 'Too many requests from this computer. Wait a minute and try again.',
+  skip: (req) => req.path.startsWith('/gate/') || req.path === '/health',
+}));
+
 app.use(express.json({ limit: '5mb' })); // room for a CSV import of a whole school
 app.use(session({
   name: 'tapmo.sid',
   secret: config.sessionSecret,
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: 'lax' },
+  // A login ends after 12 hours without using the dashboard (each request starts the 12 hours again).
+  rolling: true,
+  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 12 * 60 * 60 * 1000 },
 }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
@@ -66,6 +78,14 @@ app.use('/api', (err, req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, '..', 'public'))); // staff dashboard
+
+// Anything else that goes wrong gets a plain message: error details and file paths stay in the
+// server window, never on the page.
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(err);
+  res.status(status).type('text').send(status === 404 ? 'Not found' : 'Something went wrong');
+});
 
 // Settings in .env that are still the examples' placeholders, which anyone can read on GitHub.
 function warnAboutWeakSecrets() {

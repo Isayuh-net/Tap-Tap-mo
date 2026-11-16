@@ -5,9 +5,10 @@
   "description": "Tap-Tap Mo gate station app (Electron)",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "postinstall": "node node_modules/electron/install.js"
   },
   "devDependencies": {
-    "electron": "^44.9.0"
+    "electron": "^44.11.3"
   }
 }

@@ -357,6 +357,35 @@ How the system keeps them safe:
   login cookies can't be read by scripts, and browsers don't keep copies of API replies, which hold
   students' and parents' data.
 
+## Security checklist
+
+How Tap-Tap Mo covers a common web app security checklist. Run `npm audit` in `server` and `gate-app`
+now and then, and update anything it reports.
+
+| Item | How it's covered |
+|---|---|
+| Row level security (RLS) | Not a Supabase/Postgres app. The same idea: every API route checks the login and the role (admin, staff, teacher) on the server (`middleware/requireLogin.js`). |
+| Tight CORS settings | No CORS headers at all, so only the dashboard's own pages can call the API. |
+| Parameterized SQL queries | Every query uses `?` placeholders; values are never pasted into SQL. |
+| Verify email addresses | No emails. Parents' mobile numbers are verified with a texted code before they get attendance texts. |
+| Keep tokens out of local storage | Logins are an httpOnly cookie that page scripts can't read; nothing is kept in browser storage. |
+| Hide .env files from Git | `.env` and `gate-app/config.json` are in `.gitignore`; Git history has no real secret. |
+| Validate form inputs | The server checks every field (names, LRN, ID numbers, mobile numbers, grades, times, texts) and refuses bad ones with a message. |
+| Protect admin routes | Admin-only pages and APIs (settings, backups, holidays, reports folder) check the role on the server, not only by hiding the menu. |
+| Disable production debugging | Errors show a plain message; details stay in the server window. No `X-Powered-By` header. |
+| Server-side API secrets | The Semaphore key is only on the server (`.env`, or encrypted in the database) and never sent to a page. |
+| Security review | Reviewed against this list; Claude Code's `/security-review` can review future changes. |
+| Rate limit requests | 600 API requests a minute per computer; 20 login tries per 15 minutes per computer plus a 15-minute lock after 5 wrong passwords for a username; 5 test texts per 10 minutes; 30 code sends and 60 code entries per 10 minutes per staff account (`middleware/rateLimit.js`). |
+| Validate file uploads | Size limits, and the file's actual content must match its type: photos must be JPEGs, templates real Excel, Word, PDF or text files, imports real .xlsx files. |
+| Keep sensitive data out of logs | The server window shows only the last 4 digits of LRNs and hides the middle of mobile numbers; API keys show as `***`. Test mode prints texts (to show codes), real providers never do. |
+| Hash passwords securely | scrypt with a random salt per password, compared in constant time; at least 8 characters. Verification codes are stored hashed too. |
+| Verify webhook signatures | No webhooks: the server asks Semaphore for delivery status itself. |
+| Server-side permissions | Roles are checked on the server for every change; a teacher's account can't send texts, edit students, or change settings. |
+| Block cross-site scripting | Pages put data in as text (never HTML), and a Content Security Policy only allows the dashboard's own scripts. The gate screen has its own policy and can't open other pages. |
+| Update dependencies | `npm audit` shows 0 known vulnerabilities in both projects (body-parser, uuid and Electron were updated). |
+
+Logins end after 12 hours without using the dashboard.
+
 ## Status
 
 Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and

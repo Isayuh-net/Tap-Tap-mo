@@ -23,6 +23,9 @@ function createWindow() {
       autoplayPolicy: 'no-user-gesture-required', // beep without clicking the screen first
     },
   });
+  // The gate only ever shows its own screen: links can't open other pages or new windows.
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 

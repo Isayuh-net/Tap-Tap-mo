@@ -1,6 +1,7 @@
 // Staff login for the dashboard.
 const express = require('express');
 const users = require('../services/users');
+const rateLimit = require('../middleware/rateLimit');
 
 const router = express.Router();
 
@@ -28,8 +29,12 @@ function recordFailure(username) {
   failures.set(username, entry);
 }
 
+// One computer can try to log in at most 20 times in 15 minutes, whatever usernames it tries.
+const loginLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20,
+  message: 'Too many login attempts from this computer. Try again in 15 minutes.' });
+
 // { username, password } -> { user }
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimit, async (req, res) => {
   const username = String(req.body?.username ?? '').trim().toLowerCase();
   const locked = lockMessage(username);
   if (locked) return res.status(429).json({ error: locked });

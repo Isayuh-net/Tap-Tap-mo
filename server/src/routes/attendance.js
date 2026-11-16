@@ -43,7 +43,8 @@ router.post('/lrn', requireLogin('admin', 'staff'), (req, res) => {
     byLrn: true,
   });
   if (reply.smsQueued) smsQueue.sendSoon();
-  console.log(`[office] LRN ${lrn} ${student.full_name} -> ${reply.result} (by ${req.user.username})`);
+  // The server window shows only the LRN's last 4 digits (logs never hold full LRNs or numbers).
+  console.log(`[office] LRN ...${lrn.slice(-4)} ${student.full_name} -> ${reply.result} (by ${req.user.username})`);
   res.json({
     ...reply,
     lrn,

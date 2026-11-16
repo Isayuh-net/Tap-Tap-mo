@@ -3,6 +3,7 @@
 const express = require('express');
 const config = require('../config');
 const requireLogin = require('../middleware/requireLogin');
+const rateLimit = require('../middleware/rateLimit');
 const settings = require('../services/settings');
 const secrets = require('../services/secrets');
 const messages = require('../services/messages');
@@ -195,7 +196,8 @@ router.put('/sms', async (req, res) => {
 
 // Sends one text with the details on the page (saved or not), without the queue.
 // Body: the same as above, plus { to }
-router.post('/sms/test', async (req, res) => {
+router.post('/sms/test', rateLimit({ windowMs: 10 * 60 * 1000, max: 5, key: (req) => req.user.id,
+  message: 'Only 5 test texts every 10 minutes, to save SMS credits.' }), async (req, res) => {
   const options = smsOptions(req.body);
   const to = normalizeMobile(req.body?.to);
   if (!to) throw httpError(400, 'Enter a mobile number like 09171234567.');

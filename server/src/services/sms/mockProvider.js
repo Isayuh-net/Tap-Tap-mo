@@ -1,4 +1,6 @@
-// Fake SMS provider for development and demos. Prints texts to the console instead of sending them.
+// Fake SMS provider for development and demos. Prints texts to the console instead of sending them,
+// with the number partly hidden. The text is shown in full, since test mode needs the verification
+// codes from it; real providers never print texts.
 //  - MOCK_SMS_FAIL_RATE=0.2 in .env makes 20% of sends fail (like a dropped connection),
 //    to test the queue and retries.
 //  - Numbers ending in 0000 are treated as invalid, to test the "failed" status.
@@ -16,7 +18,7 @@ module.exports = {
     }
     if (Math.random() < failRate) throw new Error('Mock connection failure');
     const providerMessageId = `mock-${nextId++}`;
-    console.log(`[SMS to ${to}] ${body}`);
+    console.log(`[SMS to ${to.slice(0, 4)} *** ${to.slice(-4)}] ${body}`);
     return { providerMessageId };
   },
 

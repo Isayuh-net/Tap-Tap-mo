@@ -17,7 +17,8 @@ function fitsOneCredit(text) {
 }
 
 function check(text) {
-  if (!fitsOneCredit(text)) console.warn(`SMS may use more than one credit (${text.length} chars): ${text}`);
+  // Only the length is logged: the text itself has the student's name.
+  if (!fitsOneCredit(text)) console.warn(`An SMS may use more than one credit (${text.length} characters, or a special character).`);
   return text;
 }
 

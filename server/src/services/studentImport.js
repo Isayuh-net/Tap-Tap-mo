@@ -215,8 +215,11 @@ function importStudents(csvText, { commit = false } = {}) {
 async function xlsxToCsv(base64) {
   const ExcelJS = require('exceljs');
   const workbook = new ExcelJS.Workbook();
+  const data = Buffer.from(String(base64 ?? ''), 'base64');
+  // An .xlsx file is a ZIP file: anything else (a renamed file) is refused before it is opened.
+  if (data[0] !== 0x50 || data[1] !== 0x4b) throw httpError(400, 'That isn\'t an Excel (.xlsx) file. Save it again from Excel and try again.');
   try {
-    await workbook.xlsx.load(Buffer.from(String(base64 ?? ''), 'base64'));
+    await workbook.xlsx.load(data);
   } catch {
     throw httpError(400, 'This Excel file could not be read. Save it as .xlsx (or CSV UTF-8) and try again.');
   }

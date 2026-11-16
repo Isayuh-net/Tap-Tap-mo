@@ -31,7 +31,9 @@ const RESULT_LABELS = {
 function logTap(gateId, tap, reply) {
   const date = new Date(tap.tappedAt);
   const time = Number.isNaN(date.getTime()) ? '' : displayTime(date);
-  const who = reply.name ? `${reply.name}, ${reply.gradeSection}` : `${reply.method === 'lrn' ? 'LRN' : 'card'} ${tap.uid}`;
+  // A typed LRN that matched nobody shows only its last 4 digits; card numbers are kept, to register them.
+  const who = reply.name ? `${reply.name}, ${reply.gradeSection}`
+    : reply.method === 'lrn' ? `LRN ...${String(tap.uid).slice(-4)}` : `card ${tap.uid}`;
   const lrn = reply.method === 'lrn' && reply.name ? ' [typed LRN]' : '';
   const late = reply.isLate ? ' (LATE)' : '';
   const sms = reply.smsQueued ? ' - text queued' : '';
