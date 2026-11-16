@@ -61,7 +61,8 @@ $('save-lunch').addEventListener('click', async () => {
 // ---- SMS provider ----
 const PROVIDER_TEXT = {
   mock: 'Test mode: texts are printed in the server window instead of being sent. Nothing reaches parents and no credits are used.',
-  semaphore: 'After you save, parent texts go through Semaphore. Each text uses one credit from the school\'s Semaphore account.',
+  semaphore: 'After you save, parent texts go through Semaphore. Each text uses one credit from the school\'s Semaphore account. '
+    + 'The sender name must be one approved on that account. The API key is saved encrypted and is never shown again.',
   castph: 'Cast PH can\'t be used yet: the system needs their API details first.',
 };
 
@@ -71,7 +72,8 @@ function showProviderForm() {
   $('api-url').disabled = isMock;
   $('api-key').disabled = isMock;
   if (provider === 'semaphore' && !$('api-url').value) $('api-url').value = saved.sms.semaphoreUrl;
-  $('api-key').placeholder = saved.sms.provider === provider && saved.sms.apiKeyHint ? `${saved.sms.apiKeyHint} (leave empty to keep it)` : 'From your provider account';
+  const hint = saved.sms.apiKeyHints[provider];
+  $('api-key').placeholder = hint ? `${hint}. Leave empty to keep it` : 'From your provider account';
   $('sms-hint').textContent = PROVIDER_TEXT[provider] ?? '';
 }
 
@@ -93,13 +95,17 @@ $('provider').addEventListener('change', showProviderForm);
 
 $('save-sms').addEventListener('click', async () => {
   try {
+    $('save-sms').disabled = true;
     saved = await api('/settings/sms', { method: 'PUT', body: smsForm() });
     $('api-key').value = '';
     showProviderForm();
     showProviderStatus();
-    showMessage($('sms-message'), 'ok', 'Saved. The next texts use these settings.');
+    showMessage($('sms-message'), saved.warnings.length ? 'info' : 'ok',
+      ['Saved. The next texts use these settings.', ...saved.warnings].join(' '));
   } catch (err) {
     showMessage($('sms-message'), 'error', err.message);
+  } finally {
+    $('save-sms').disabled = false;
   }
 });
 

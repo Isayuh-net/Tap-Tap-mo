@@ -38,6 +38,8 @@ module.exports = {
   allowLrnEntry: process.env.ALLOW_LRN_ENTRY !== 'false',
   gateKeys: parseGateKeys(process.env.GATE_KEYS),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-secret',
+  // Encrypts secrets saved in the database, like an SMS API key typed on the dashboard (64 hex characters).
+  secretsKey: process.env.SECRETS_KEY || '',
   // Page the server loads every minute to see if the internet is up (a tiny page made for this).
   internetCheckUrl: process.env.INTERNET_CHECK_URL || 'https://www.google.com/generate_204',
   backup: {
@@ -49,6 +51,10 @@ module.exports = {
     provider: process.env.SMS_PROVIDER || 'mock',
     senderName: process.env.SMS_SENDER_NAME || 'BCNHS',
     retrySeconds: Number(process.env.SMS_RETRY_SECONDS) || 60,
+    semaphore: {
+      apiUrl: process.env.SEMAPHORE_API_URL,
+      apiKey: process.env.SEMAPHORE_API_KEY,
+    },
     castph: {
       apiUrl: process.env.CASTPH_API_URL,
       apiKey: process.env.CASTPH_API_KEY,

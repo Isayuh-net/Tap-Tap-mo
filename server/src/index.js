@@ -9,8 +9,29 @@ const internet = require('./services/internet');
 const backup = require('./services/backup');
 
 const app = express();
+app.disable('x-powered-by');
+
+// Security headers on every response: pages only run the dashboard's own scripts (no injected
+// ones), can't be shown inside another site, and don't leak addresses. API replies hold students'
+// and parents' data, so browsers don't keep them (a reply can still allow it, like photos).
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
+  "font-src 'self'", "connect-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
+].join('; ');
+app.use((req, res, next) => {
+  res.set({
+    'Content-Security-Policy': CONTENT_SECURITY_POLICY,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+  });
+  if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
+  next();
+});
+
 app.use(express.json({ limit: '5mb' })); // room for a CSV import of a whole school
 app.use(session({
+  name: 'tapmo.sid',
   secret: config.sessionSecret,
   resave: false,
   saveUninitialized: false,
@@ -46,7 +67,20 @@ app.use('/api', (err, req, res, next) => {
 
 app.use(express.static(path.join(__dirname, '..', 'public'))); // staff dashboard
 
+// Settings in .env that are still the examples' placeholders, which anyone can read on GitHub.
+function warnAboutWeakSecrets() {
+  const weak = [];
+  if (config.sessionSecret.length < 32 || /change|secret|dev-only/i.test(config.sessionSecret)) weak.push('SESSION_SECRET');
+  if (Object.values(config.gateKeys).some((key) => key.length < 20 || /change-me/.test(key))) weak.push('GATE_KEYS');
+  if (!/^[0-9a-f]{64}$/i.test(config.secretsKey)) weak.push('SECRETS_KEY');
+  if (weak.length) {
+    console.warn(`WARNING: ${weak.join(', ')} in server/.env ${weak.length === 1 ? 'is' : 'are'} missing or still a placeholder. `
+      + 'See "Keeping secrets safe" in README.md.');
+  }
+}
+
 app.listen(config.port, '0.0.0.0', () => {
+  warnAboutWeakSecrets();
   console.log(`Tap-Tap Mo server running on port ${config.port} (SMS provider: ${require('./services/sms').name})`);
   smsQueue.start();
   internet.start();

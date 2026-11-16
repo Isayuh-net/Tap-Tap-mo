@@ -36,7 +36,7 @@ const resetStuck = db.prepare("UPDATE sms_messages SET status = 'queued' WHERE s
 const awaitingDelivery = db.prepare(`
   SELECT id, provider_message_id FROM sms_messages
   WHERE status = 'sent' AND provider_message_id IS NOT NULL AND sent_at > ?
-  LIMIT 50
+  LIMIT 1000
 `);
 
 // 60s, 120s, 240s, then every 5 minutes until the text goes through.
@@ -78,14 +78,18 @@ async function sendDue() {
 // Asks the provider whether sent texts reached the phone (texts from the last 24 hours).
 async function checkDelivery() {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  for (const msg of awaitingDelivery.all(since)) {
-    try {
-      const status = await sms.getStatus(msg.provider_message_id);
-      if (status === 'delivered') markDelivered.run(nowIso(), msg.id);
-      else if (status === 'failed') markFailed.run('Not delivered', msg.id);
-    } catch {
-      return; // provider unreachable, try again next time
-    }
+  const waiting = awaitingDelivery.all(since);
+  if (!waiting.length) return;
+  let statuses;
+  try {
+    statuses = await sms.getStatuses(waiting.map((msg) => msg.provider_message_id));
+  } catch {
+    return; // provider unreachable, try again next time
+  }
+  for (const msg of waiting) {
+    const status = statuses.get(msg.provider_message_id);
+    if (status === 'delivered') markDelivered.run(nowIso(), msg.id);
+    else if (status === 'failed') markFailed.run('Not delivered (the network rejected it; the credit is refunded)', msg.id);
   }
 }
 

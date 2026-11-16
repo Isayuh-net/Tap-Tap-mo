@@ -4,6 +4,7 @@ const express = require('express');
 const config = require('../config');
 const requireLogin = require('../middleware/requireLogin');
 const settings = require('../services/settings');
+const secrets = require('../services/secrets');
 const messages = require('../services/messages');
 const sms = require('../services/sms');
 const { DEFAULT_URL: SEMAPHORE_URL } = require('../services/sms/semaphoreProvider');
@@ -21,8 +22,13 @@ function toTime(text) {
   return `${match[1].padStart(2, '0')}:${match[2]}:00`;
 }
 
-// "abcd1234efgh" -> "Saved key ending in efgh", so the key itself never reaches the page
-const keyHint = (key) => (key ? `Saved key ending in ${key.slice(-4)}` : '');
+// Where the provider's API key is, ending with its last 4 characters. The key itself never
+// reaches the page.
+function keyHint(provider) {
+  const { apiKey, source } = settings.apiKeyFor(provider);
+  if (!apiKey) return '';
+  return source === 'env' ? `Saved in server/.env (ending in ${apiKey.slice(-4)})` : `Saved, encrypted (ending in ${apiKey.slice(-4)})`;
+}
 
 function current() {
   const s = settings.sms();
@@ -39,7 +45,7 @@ function current() {
       provider: s.provider,
       senderName: s.senderName,
       apiUrl: s.apiUrl,
-      apiKeyHint: keyHint(s.apiKey),
+      apiKeyHints: Object.fromEntries(Object.keys(sms.PROVIDERS).map((p) => [p, keyHint(p)])),
       providers: Object.entries(sms.PROVIDERS).map(([value, p]) => ({ value, label: p.label })),
       semaphoreUrl: SEMAPHORE_URL,
     },
@@ -84,9 +90,28 @@ router.put('/lunch', (req, res) => {
   res.json(current());
 });
 
-// The provider details from the page, with the saved API key when the box was left empty.
+// The API key goes only to the provider's own servers (or this PC, for testing), over HTTPS.
+const API_HOSTS = { semaphore: ['api.semaphore.co', 'semaphore.co'] };
+const TEST_HOSTS = ['localhost', '127.0.0.1'];
+
+function checkApiUrl(provider, apiUrl) {
+  if (!apiUrl) return;
+  let url;
+  try {
+    url = new URL(apiUrl);
+  } catch {
+    throw httpError(400, 'The API URL isn\'t a web address.');
+  }
+  const testing = TEST_HOSTS.includes(url.hostname);
+  if (url.protocol !== 'https:' && !testing) throw httpError(400, 'The API URL must start with https:// so the key is sent encrypted.');
+  if (API_HOSTS[provider] && !API_HOSTS[provider].includes(url.hostname) && !testing) {
+    throw httpError(400, `The API URL must be on ${API_HOSTS[provider][0]}, so the key only goes to ${sms.PROVIDERS[provider].label}.`);
+  }
+}
+
+// The provider details from the page. An empty API key box means "keep the saved one" (typed
+// before, or in server/.env). Returns { provider, senderName, apiUrl, apiKey, newKey }.
 function smsOptions(body) {
-  const saved = settings.sms();
   const provider = String(body?.provider ?? '');
   if (!sms.PROVIDERS[provider]) throw httpError(400, 'Choose an SMS provider.');
   if (provider === 'castph') {
@@ -96,18 +121,61 @@ function smsOptions(body) {
   if (!/^[A-Za-z0-9 ]{1,11}$/.test(senderName)) {
     throw httpError(400, 'The sender name must be 1 to 11 letters or numbers (for example BCNHS).');
   }
+  if (/^test/i.test(senderName)) throw httpError(400, 'The sender name can\'t start with "TEST": Semaphore ignores texts that start with that word.');
+  if (provider === 'mock') return { provider, senderName, apiUrl: '', apiKey: '', newKey: '' };
+
   const apiUrl = String(body?.apiUrl ?? '').trim();
-  if (apiUrl && !/^https?:\/\/\S+$/.test(apiUrl)) throw httpError(400, 'The API URL must start with https://');
+  checkApiUrl(provider, apiUrl);
   const newKey = String(body?.apiKey ?? '').trim();
-  const apiKey = newKey || (saved.provider === provider ? saved.apiKey : '');
-  if (provider === 'semaphore' && !apiKey) throw httpError(400, 'Enter the API key from your Semaphore account.');
-  return { provider, senderName, apiUrl: provider === 'mock' ? '' : apiUrl, apiKey: provider === 'mock' ? '' : apiKey };
+  if (newKey && !/^[A-Za-z0-9]{16,64}$/.test(newKey)) throw httpError(400, 'That doesn\'t look like an API key (letters and numbers only).');
+  const apiKey = newKey || settings.apiKeyFor(provider).apiKey;
+  if (!apiKey) throw httpError(400, `Enter the API key from your ${sms.PROVIDERS[provider].label} account.`);
+  return { provider, senderName, apiUrl, apiKey, newKey };
+}
+
+// Before switching parents' texts to Semaphore: is the sender name registered on the account, and are
+// there credits? A sender name that isn't registered would make every text fail, so it is refused.
+// Returns warnings to show; if Semaphore can't be asked right now, it says so and saves anyway.
+async function checkAccount(options) {
+  const provider = sms.build(options);
+  if (!provider.checkAccount) return [];
+  let account;
+  try {
+    account = await provider.checkAccount();
+  } catch (err) {
+    return [`Couldn't check the Semaphore account (${err.message}). Send a test text to make sure it works.`];
+  }
+  if (account.senderNames) {
+    const active = account.senderNames.filter((s) => !s.status || /active|approved/i.test(s.status)).map((s) => s.name);
+    if (!active.some((name) => name.toLowerCase() === options.senderName.toLowerCase())) {
+      throw httpError(400, active.length
+        ? `"${options.senderName}" isn't an approved sender name on your Semaphore account. Use one of: ${active.join(', ')}.`
+        : 'Your Semaphore account has no approved sender name yet, so texts can\'t be sent. On semaphore.co, add one '
+          + `(for example ${options.senderName}) under Sender Names, wait for approval, then save again.`);
+    }
+  }
+  const warnings = [];
+  if (account.credits === 0) warnings.push('The account has 0 credits: texts wait in the queue until credits are loaded.');
+  if (account.status && !/active/i.test(account.status)) warnings.push(`Semaphore lists the account as "${account.status}".`);
+  return warnings;
 }
 
 // Body: { provider, senderName, apiUrl, apiKey (empty = keep the saved one) }
-router.put('/sms', (req, res) => {
-  settings.set('sms', smsOptions(req.body));
-  res.json(current());
+router.put('/sms', async (req, res) => {
+  const options = smsOptions(req.body);
+  if (options.newKey && !secrets.canEncrypt()) {
+    throw httpError(400, 'The key can\'t be saved safely: SECRETS_KEY is missing from server/.env. Ask the person who set up the server.');
+  }
+  const warnings = options.provider === 'mock' ? [] : await checkAccount(options);
+  const saved = settings.get('sms') ?? {};
+  settings.set('sms', {
+    provider: options.provider,
+    senderName: options.senderName,
+    apiUrl: options.apiUrl,
+    // Keys stay saved per provider (encrypted), so switching to test mode and back keeps them.
+    apiKeys: { ...saved.apiKeys, ...(options.newKey ? { [options.provider]: secrets.encrypt(options.newKey) } : {}) },
+  });
+  res.json({ ...current(), warnings });
 });
 
 // Sends one text with the details on the page (saved or not), without the queue.
@@ -116,7 +184,7 @@ router.post('/sms/test', async (req, res) => {
   const options = smsOptions(req.body);
   const to = normalizeMobile(req.body?.to);
   if (!to) throw httpError(400, 'Enter a mobile number like 09171234567.');
-  const body = `${options.senderName}: This is a test text from Tap-Tap Mo. Parent texts will come from this sender.`;
+  const body = `${options.senderName}: Hello from Tap-Tap Mo. Parent texts will come from this sender.`;
   try {
     await sms.build(options).send({ to, body });
   } catch (err) {

@@ -60,6 +60,7 @@ Tap-Tap-mo/
 │   │   │   ├── reportFiles.js  Copies of downloaded reports, one folder per school year and section
 │   │   │   ├── templates.js    The school's SF2 and student list templates
 │   │   │   ├── settings.js     Settings changed on the dashboard (they replace .env values)
+│   │   │   ├── secrets.js      Encrypts API keys saved in the database (SECRETS_KEY)
 │   │   │   ├── schoolDays.js   Weekdays that aren't holidays
 │   │   │   ├── smsLog.js       SMS log, today's counts, retrying texts
 │   │   │   ├── internet.js     Checks every minute whether the internet is up
@@ -294,6 +295,59 @@ Student photos are kept as one up-to-date copy in the `photos` folder inside `BA
 them, copy its files into `server/data/photos`.
 Backups hold students' and parents' personal data and photos (Data Privacy Act), so keep the drive locked away.
 
+## Sending real texts with Semaphore
+
+The school uses Semaphore (semaphore.co, [API docs](https://semaphore.co/docs)) for now. Its API key is
+in `server/.env` (`SEMAPHORE_API_KEY`), so the system is ready, but texts stay in test mode until the
+Semaphore account can send:
+
+1. **Account active**: on semaphore.co the account must no longer be "Pending".
+2. **Credits loaded**: each text uses 1 credit (texts that fail are refunded).
+3. **Sender name approved**: under Sender Names, add `BCNHS` (the name every text starts with) and wait
+   for approval. Without an approved sender name Semaphore can't send at all.
+4. On **Lunch and SMS settings**, choose **Semaphore**, keep the sender name `BCNHS`, leave the API key
+   box empty (it uses the one in `.env`), and send a **test text** to your own phone. Then click
+   **Save provider**. Saving checks the account first: it refuses a sender name that isn't approved
+   (every text would fail) and warns about 0 credits.
+
+Semaphore allows 120 texts a minute, so the queue sends about 109 a minute; at the morning rush the
+rest wait a few seconds. Delivery is checked for all sent texts with one request every 30 seconds.
+Texts that start with "TEST" are ignored by Semaphore, so a sender name can't start with it.
+
+## Keeping secrets safe
+
+The secrets are only in two files, both kept out of Git (`.gitignore`): `server/.env` on the server PC
+and `gate-app/config.json` on each gate PC. Never put a real value in `.env.example`, the README, or a
+message. If one leaks, replace it (for the Semaphore key: make a new key on semaphore.co).
+
+| Secret | What it protects |
+|---|---|
+| `SESSION_SECRET` | Staff logins. Anyone who knows it could pretend to be logged in. |
+| `GATE_KEYS` | Which PCs can send taps. Each gate's key is also its `gateKey` in that gate PC's `gate-app/config.json`. |
+| `SECRETS_KEY` | Encrypts API keys typed on Lunch and SMS settings before they are saved in the database. |
+| `SEMAPHORE_API_KEY` | The school's Semaphore account (and its credits). |
+
+Make a new random value with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Restart the server (and the gate apps, for new gate keys) after changing them. Changing
+`SESSION_SECRET` logs everyone out. The server prints a warning at startup if one is missing or is
+still a placeholder from `.env.example`.
+
+How the system keeps them safe:
+- The API key never reaches a page: Lunch and SMS settings only shows where it is saved and its last 4
+  characters. It is never written to the logs, the SMS log, or error messages (they show `***`).
+- A key typed on the dashboard is saved encrypted (AES-256-GCM with `SECRETS_KEY`), so the database
+  and its backups don't reveal it. Keep a copy of `server/.env` somewhere safe (not with the backups):
+  without `SECRETS_KEY` a saved key must be typed again.
+- The key is only sent to Semaphore, over HTTPS: the settings page refuses any other API address.
+- Pages only run the dashboard's own scripts and can't be shown inside other sites (security headers),
+  login cookies can't be read by scripts, and browsers don't keep copies of API replies, which hold
+  students' and parents' data.
+
 ## Status
 
 Built: the tap-to-text flow (gate screen, offline outbox, tap processing, SMS queue with retries and
@@ -303,8 +357,9 @@ numbers, student photos, verifying parent numbers a class at a time, the dashboa
 with section sizes, Log by LRN, daily and monthly Excel reports (SF2, male and female sheets) saved in
 a folder per section, school templates, Lunch and SMS settings, the attendance records API, SMS log
 with retry, holidays, daily backups, and a login lock.
-The Semaphore provider was tested against a stand-in server that answers like Semaphore's API, not
-yet with a real Semaphore account: send one **Send test text** before switching parents to it.
+The Semaphore key works (the account and sender names were read with it). No real text has been sent
+yet: the account is still pending, with no credits and no approved sender name. Sending, delivery
+checks and errors were tested against a stand-in server that answers like Semaphore's API.
 Not built yet: Cast PH provider, replacing lost cards, and deactivating students. Routes that are not built yet answer `501 Not implemented`.
 
 ## To confirm with Cast PH
