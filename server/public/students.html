@@ -17,8 +17,33 @@
       <div class="actions" style="margin: 0">
         <a class="button" href="/api/templates/students">Download template</a>
         <a id="import-link" class="button" href="import.html" hidden>Import filled template</a>
+        <button type="button" id="bulk-open" hidden>Upload many photos</button>
       </div>
     </div>
+
+    <!-- Many photos at once, matched to students by their file names (js/bulk-photos.js) -->
+    <section id="bulk-box" class="panel block" hidden>
+      <div class="card-head">
+        <div>
+          <h3>Upload many photos</h3>
+          <p>Name each photo after the student's LRN or ID number, like <span class="mono">136502141517.jpg</span>
+            or <span class="mono">2026-0041.jpg</span> (anything after a space is ignored, so
+            <span class="mono">2026-0041 Juan Dela Cruz.jpg</span> works too). Then choose them all at once:
+            open the folder and press Ctrl+A.</p>
+        </div>
+        <button type="button" id="bulk-close" class="link-button">Close</button>
+      </div>
+      <input id="bulk-files" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Choose photos">
+      <p id="bulk-summary" class="hint"></p>
+      <div id="bulk-list" class="table-wrap" hidden>
+        <table>
+          <thead><tr><th>File</th><th>Student</th><th>Section</th><th>What happens</th></tr></thead>
+          <tbody id="bulk-rows"></tbody>
+        </table>
+      </div>
+      <p id="bulk-message" class="message" role="status" style="margin: 16px 0 0"></p>
+      <button type="button" id="bulk-upload" class="primary" style="margin-top: 18px" hidden>Upload photos</button>
+    </section>
 
     <div class="toolbar" style="align-items: flex-start; margin-bottom: 4px">
       <div id="sections" class="pills" aria-label="Sections" style="flex: 1"></div>
@@ -67,5 +92,6 @@
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/students.js"></script>
+  <script src="js/bulk-photos.js"></script>
 </body>
 </html>

@@ -247,6 +247,11 @@ Verify numbers, SMS log). Each person only sees the pages their role can use.
   photo the gate screen shows when they tap. Photos are shrunk in the browser before upload (600 x 800
   at most, about 50 KB), saved in `server/data/photos` (`PHOTOS_DIR`), and downloaded by each gate so they
   still show when the server is offline. A new photo shows the next time the student taps.
+  **Upload many photos** (admin and staff) adds a whole batch: name each photo after the student's LRN
+  or ID number (`136502141517.jpg`, `2026-0041.jpg`, or `2026-0041 Juan Dela Cruz.jpg`; anything after
+  a space is ignored), open the folder and choose them all (Ctrl+A). The page lists which student each
+  photo belongs to, and which are skipped (no student with that LRN or ID, two photos for one student,
+  not a JPG/PNG/WebP), before **Upload photos** sends them one at a time.
 - **Log by LRN** (admin and staff): for a student without their card, type their 12-digit LRN at the
   office and click **Log attendance**. It counts like a tap (time in, lunch, time out) and texts the
   parent the same way, marked "Office" and "LRN". The list shows everyone logged by LRN today, here or at

@@ -220,6 +220,7 @@ td button, .small-button { min-height: 34px; padding: 5px 12px; font-size: 13.5p
 .message.error { background: var(--bad-soft); color: #8a1f17; }
 .message.info { background: var(--info-soft); color: var(--info); }
 .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; line-height: 1.5; }
+#bulk-rows .badge { white-space: normal; border-radius: 10px; } /* long notes wrap in the bulk photo list */
 .badge.new { background: var(--info-soft); color: var(--info); }
 .badge.imported, .badge.ok { background: var(--good-soft); color: #145c32; }
 .badge.duplicate, .badge.waiting { background: #eeebe8; color: var(--text-2); }
