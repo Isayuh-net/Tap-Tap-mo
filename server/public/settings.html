@@ -57,11 +57,14 @@
       </div>
       <div class="row">
         <label>Provider <select id="provider"></select></label>
-        <label>Sender name <input id="sender-name" maxlength="11" placeholder="BCNHS"></label>
+        <label>Sender name <input id="sender-name" maxlength="11" placeholder="TestBCNHS">
+          <span class="hint">What the phone shows. Must be approved on the provider's account.</span></label>
         <label>API URL <input id="api-url" placeholder="From your provider account"></label>
       </div>
       <div class="row">
         <label>API key <input id="api-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="From your provider account"></label>
+        <label>Texts start with <input id="text-prefix" maxlength="15" placeholder="BCNHS">
+          <span class="hint">The school's short name, like "BCNHS: Juan arrived...". Can't start with "TEST".</span></label>
       </div>
       <div class="inset test-box">
         <div class="field-row">

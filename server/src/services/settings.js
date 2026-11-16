@@ -3,7 +3,7 @@
 // editing files or restarting the server.
 //   lunch          { start, end }    'HH:MM:SS', replaces LUNCH_START and LUNCH_END
 //   lunchLateText  text              the late-from-lunch text, with [Student name] etc. (messages.js)
-//   sms            { provider, senderName, apiUrl, apiKeys: { semaphore: encrypted } }   replaces SMS_PROVIDER etc.
+//   sms            { provider, senderName, textPrefix, apiUrl, apiKeys: { semaphore: encrypted } }   replaces SMS_PROVIDER etc.
 //   reportsDir     folder            where Excel downloads are saved (reportFiles.js)
 //   template:<kind>                  an uploaded school template (templates.js)
 const db = require('../db');
@@ -38,7 +38,7 @@ function apiKeyFor(provider) {
 }
 
 // The SMS provider and its details: saved on the dashboard, or from .env until then.
-// { provider, senderName, apiUrl, apiKey, apiKeySource }
+// { provider, senderName, textPrefix, apiUrl, apiKey, apiKeySource }
 function sms() {
   const saved = get('sms');
   const provider = saved?.provider ?? config.sms.provider;
@@ -46,6 +46,7 @@ function sms() {
   return {
     provider,
     senderName: saved?.senderName ?? config.sms.senderName,
+    textPrefix: saved?.textPrefix ?? config.sms.textPrefix,
     apiUrl: saved?.apiUrl || config.sms[provider]?.apiUrl || '',
     apiKey,
     apiKeySource: source,

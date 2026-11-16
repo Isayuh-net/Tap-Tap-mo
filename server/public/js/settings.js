@@ -87,6 +87,7 @@ function showProviderStatus() {
 const smsForm = () => ({
   provider: $('provider').value,
   senderName: $('sender-name').value,
+  textPrefix: $('text-prefix').value,
   apiUrl: $('api-url').value,
   apiKey: $('api-key').value,
 });
@@ -147,6 +148,7 @@ async function load() {
   $('provider').replaceChildren(...saved.sms.providers.map((p) => new Option(p.value === 'castph' ? `${p.label} (not available yet)` : p.label, p.value)));
   $('provider').value = saved.sms.provider;
   $('sender-name').value = saved.sms.senderName;
+  $('text-prefix').value = saved.sms.textPrefix;
   $('api-url').value = saved.sms.apiUrl;
   showProviderForm();
   showProviderStatus();

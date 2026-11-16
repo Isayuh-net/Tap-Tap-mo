@@ -49,7 +49,9 @@ module.exports = {
   },
   sms: {
     provider: process.env.SMS_PROVIDER || 'mock',
-    senderName: process.env.SMS_SENDER_NAME || 'BCNHS',
+    senderName: process.env.SMS_SENDER_NAME || 'BCNHS', // the sender the phone shows (approved by the provider)
+    // The school's short name at the start of every text. Older setups used the sender name for this.
+    textPrefix: process.env.SMS_TEXT_PREFIX || process.env.SMS_SENDER_NAME || 'BCNHS',
     retrySeconds: Number(process.env.SMS_RETRY_SECONDS) || 60,
     semaphore: {
       apiUrl: process.env.SEMAPHORE_API_URL,

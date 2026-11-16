@@ -109,6 +109,7 @@ h4 { font-size: 16px; font-weight: 750; margin: 0 0 8px; }
 .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 20px; }
 .card-head p { margin: 0; color: var(--text-2); }
 .card-head > div:first-child { flex: 1 1 320px; min-width: 0; }
+label .hint { display: block; font-weight: 400; font-size: 13px; }
 .hint { font-size: 14px; color: var(--text-2); font-weight: 400; margin: 8px 0 0; }
 .footnote { color: var(--text-2); font-size: 14px; margin: 24px 2px 0; }
 

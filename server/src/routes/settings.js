@@ -44,6 +44,7 @@ function current() {
     sms: {
       provider: s.provider,
       senderName: s.senderName,
+      textPrefix: s.textPrefix,
       apiUrl: s.apiUrl,
       apiKeyHints: Object.fromEntries(Object.keys(sms.PROVIDERS).map((p) => [p, keyHint(p)])),
       providers: Object.entries(sms.PROVIDERS).map(([value, p]) => ({ value, label: p.label })),
@@ -110,7 +111,9 @@ function checkApiUrl(provider, apiUrl) {
 }
 
 // The provider details from the page. An empty API key box means "keep the saved one" (typed
-// before, or in server/.env). Returns { provider, senderName, apiUrl, apiKey, newKey }.
+// before, or in server/.env). Returns { provider, senderName, textPrefix, apiUrl, apiKey, newKey }.
+// The sender name is what the phone shows (approved by the provider; it may start with "Test"), and
+// textPrefix starts every text ("BCNHS: ..."). Semaphore drops texts that start with "TEST".
 function smsOptions(body) {
   const provider = String(body?.provider ?? '');
   if (!sms.PROVIDERS[provider]) throw httpError(400, 'Choose an SMS provider.');
@@ -121,8 +124,12 @@ function smsOptions(body) {
   if (!/^[A-Za-z0-9 ]{1,11}$/.test(senderName)) {
     throw httpError(400, 'The sender name must be 1 to 11 letters or numbers (for example BCNHS).');
   }
-  if (/^test/i.test(senderName)) throw httpError(400, 'The sender name can\'t start with "TEST": Semaphore ignores texts that start with that word.');
-  if (provider === 'mock') return { provider, senderName, apiUrl: '', apiKey: '', newKey: '' };
+  const textPrefix = String(body?.textPrefix ?? '').trim();
+  if (!/^[A-Za-z0-9 .-]{1,15}$/.test(textPrefix)) {
+    throw httpError(400, 'Texts must start with the school\'s short name: 1 to 15 letters or numbers (for example BCNHS).');
+  }
+  if (/^test/i.test(textPrefix)) throw httpError(400, 'Texts can\'t start with "TEST": Semaphore ignores texts that start with that word.');
+  if (provider === 'mock') return { provider, senderName, textPrefix, apiUrl: '', apiKey: '', newKey: '' };
 
   const apiUrl = String(body?.apiUrl ?? '').trim();
   checkApiUrl(provider, apiUrl);
@@ -130,12 +137,12 @@ function smsOptions(body) {
   if (newKey && !/^[A-Za-z0-9]{16,64}$/.test(newKey)) throw httpError(400, 'That doesn\'t look like an API key (letters and numbers only).');
   const apiKey = newKey || settings.apiKeyFor(provider).apiKey;
   if (!apiKey) throw httpError(400, `Enter the API key from your ${sms.PROVIDERS[provider].label} account.`);
-  return { provider, senderName, apiUrl, apiKey, newKey };
+  return { provider, senderName, textPrefix, apiUrl, apiKey, newKey };
 }
 
 // Before switching parents' texts to Semaphore: is the sender name registered on the account, and are
 // there credits? A sender name that isn't registered would make every text fail, so it is refused.
-// Returns warnings to show; if Semaphore can't be asked right now, it says so and saves anyway.
+// Returns warnings to show. If Semaphore can't be asked right now, nothing is saved.
 async function checkAccount(options) {
   const provider = sms.build(options);
   if (!provider.checkAccount) return [];
@@ -143,10 +150,17 @@ async function checkAccount(options) {
   try {
     account = await provider.checkAccount();
   } catch (err) {
-    return [`Couldn't check the Semaphore account (${err.message}). Send a test text to make sure it works.`];
+    // Switching without the check could send every text to a sender name that doesn't work.
+    throw httpError(400, `Couldn't check the Semaphore account (${err.message}). Nothing was changed; try again in a minute.`);
   }
   if (account.senderNames) {
     const active = account.senderNames.filter((s) => !s.status || /active|approved/i.test(s.status)).map((s) => s.name);
+    const same = (s) => s.name.toLowerCase() === options.senderName.toLowerCase();
+    const waiting = account.senderNames.find((s) => same(s) && s.status && !/active|approved/i.test(s.status));
+    if (waiting) {
+      throw httpError(400, `"${waiting.name}" is still ${waiting.status.toLowerCase()} on Semaphore, so texts can't be sent with it yet. `
+        + 'Save again once Semaphore approves it.');
+    }
     if (!active.some((name) => name.toLowerCase() === options.senderName.toLowerCase())) {
       throw httpError(400, active.length
         ? `"${options.senderName}" isn't an approved sender name on your Semaphore account. Use one of: ${active.join(', ')}.`
@@ -160,7 +174,7 @@ async function checkAccount(options) {
   return warnings;
 }
 
-// Body: { provider, senderName, apiUrl, apiKey (empty = keep the saved one) }
+// Body: { provider, senderName, textPrefix, apiUrl, apiKey (empty = keep the saved one) }
 router.put('/sms', async (req, res) => {
   const options = smsOptions(req.body);
   if (options.newKey && !secrets.canEncrypt()) {
@@ -171,6 +185,7 @@ router.put('/sms', async (req, res) => {
   settings.set('sms', {
     provider: options.provider,
     senderName: options.senderName,
+    textPrefix: options.textPrefix,
     apiUrl: options.apiUrl,
     // Keys stay saved per provider (encrypted), so switching to test mode and back keeps them.
     apiKeys: { ...saved.apiKeys, ...(options.newKey ? { [options.provider]: secrets.encrypt(options.newKey) } : {}) },
@@ -184,7 +199,7 @@ router.post('/sms/test', async (req, res) => {
   const options = smsOptions(req.body);
   const to = normalizeMobile(req.body?.to);
   if (!to) throw httpError(400, 'Enter a mobile number like 09171234567.');
-  const body = `${options.senderName}: Hello from Tap-Tap Mo. Parent texts will come from this sender.`;
+  const body = `${options.textPrefix}: Hello from Tap-Tap Mo. Parent texts will come from this sender.`;
   try {
     await sms.build(options).send({ to, body });
   } catch (err) {

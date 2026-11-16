@@ -301,18 +301,22 @@ The school uses Semaphore (semaphore.co, [API docs](https://semaphore.co/docs)) 
 in `server/.env` (`SEMAPHORE_API_KEY`), so the system is ready, but texts stay in test mode until the
 Semaphore account can send:
 
-1. **Account active**: on semaphore.co the account must no longer be "Pending".
+1. **Account active**: done (Active, with credits).
 2. **Credits loaded**: each text uses 1 credit (texts that fail are refunded).
-3. **Sender name approved**: under Sender Names, add `BCNHS` (the name every text starts with) and wait
-   for approval. Without an approved sender name Semaphore can't send at all.
-4. On **Lunch and SMS settings**, choose **Semaphore**, keep the sender name `BCNHS`, leave the API key
-   box empty (it uses the one in `.env`), and send a **test text** to your own phone. Then click
-   **Save provider**. Saving checks the account first: it refuses a sender name that isn't approved
-   (every text would fail) and warns about 0 credits.
+3. **Sender name approved**: the account's sender name is `TestBCNHS`, waiting for Semaphore's
+   approval. Until then Semaphore refuses every text ("No active sender name found").
+4. On **Lunch and SMS settings**, choose **Semaphore**, with sender name `TestBCNHS` and **Texts start
+   with** `BCNHS`. Leave the API key box empty (it uses the one in `.env`), and send a **test text** to
+   your own phone. Then click **Save provider**. Saving checks the account first: it refuses a sender
+   name that isn't approved (every text would fail) and warns about 0 credits.
+
+The **sender name** (`SMS_SENDER_NAME`) is what the phone shows; the **text start**
+(`SMS_TEXT_PREFIX`) is the school's short name at the beginning of every text ("BCNHS: Juan Dela Cruz
+arrived..."). They are separate because Semaphore silently drops texts that start with "TEST", so a
+sender name like `TestBCNHS` is fine but texts can't start with it.
 
 Semaphore allows 120 texts a minute, so the queue sends about 109 a minute; at the morning rush the
 rest wait a few seconds. Delivery is checked for all sent texts with one request every 30 seconds.
-Texts that start with "TEST" are ignored by Semaphore, so a sender name can't start with it.
 
 ## Keeping secrets safe
 

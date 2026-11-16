@@ -4,8 +4,9 @@ const config = require('../config');
 const settings = require('./settings');
 const { displayTime, displayDate, clockLabel } = require('../utils/time');
 
-// The name at the start of every text, e.g. "BCNHS" (set with the SMS provider on the dashboard).
-const senderName = () => settings.sms().senderName;
+// The school's short name at the start of every text, e.g. "BCNHS" (set on Lunch and SMS settings).
+// It is separate from the sender name the phone shows, which the SMS provider approves.
+const textPrefix = () => settings.sms().textPrefix;
 const FOOTER = ' Automated message, do not reply.';
 
 // Letters, digits, common punctuation, and the accented letters in the GSM-7 alphabet (like ñ).
@@ -29,9 +30,9 @@ function firstThatFits(...versions) {
 // One attendance text: "BCNHS: <name> (<class>) <event> Automated message, do not reply."
 function attendanceText(name, classLabel, event) {
   return firstThatFits(
-    `${senderName()}: ${name} (${classLabel}) ${event}${FOOTER}`,
-    `${senderName()}: ${name} (${classLabel}) ${event}`,
-    `${senderName()}: ${name} ${event}`,
+    `${textPrefix()}: ${name} (${classLabel}) ${event}${FOOTER}`,
+    `${textPrefix()}: ${name} (${classLabel}) ${event}`,
+    `${textPrefix()}: ${name} ${event}`,
   );
 }
 
@@ -58,7 +59,7 @@ const LUNCH_LATE_WORDS = {
 };
 
 function defaultLunchLateText() {
-  return `${senderName()}: [Student name] ([section]) came back LATE from lunch at [time], after the [cutoff] cutoff.${FOOTER}`;
+  return `${textPrefix()}: [Student name] ([section]) came back LATE from lunch at [time], after the [cutoff] cutoff.${FOOTER}`;
 }
 
 // The words in brackets that aren't known, e.g. "[Name]" -> ['Name'].
@@ -77,8 +78,8 @@ function lunchLate(name, classLabel, date) {
   return firstThatFits(
     fillLunchLate(settings.get('lunchLateText') ?? defaultLunchLateText(), values),
     fillLunchLate(defaultLunchLateText(), values),
-    `${senderName()}: ${name} (${classLabel}) came back LATE from lunch ${at(date)}`,
-    `${senderName()}: ${name} came back LATE from lunch ${at(date)}`,
+    `${textPrefix()}: ${name} (${classLabel}) came back LATE from lunch ${at(date)}`,
+    `${textPrefix()}: ${name} came back LATE from lunch ${at(date)}`,
   );
 }
 
@@ -97,7 +98,7 @@ function forTap(kind, name, classLabel, date, isLate) {
 }
 
 function verificationCode(code) {
-  return check(`${senderName()}: Your Tap-Tap Mo verification code is ${code}. Give it only to your child's adviser or the school staff.`);
+  return check(`${textPrefix()}: Your Tap-Tap Mo verification code is ${code}. Give it only to your child's adviser or the school staff.`);
 }
 
 module.exports = {
